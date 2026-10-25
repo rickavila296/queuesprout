@@ -1,0 +1,21 @@
+{
+  "name": "@queuesprout/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@queuesprout/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@queuesprout/config": "workspace:*",
+    "vitest": "^5.0.5"
+  }
+}

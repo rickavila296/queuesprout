@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@queuesprout/ui/styles.css';
+
+/* Tailwind v4 scans this app automatically; include the shared UI package too. */
+@source '../../../../packages/ui/src';

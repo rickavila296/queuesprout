@@ -1,0 +1,33 @@
+{
+  "name": "@queuesprout/db",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./migrate": "./src/migrate.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests --project unit",
+    "test:integration": "vitest run --project integration",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=../../.env src/cli/migrate.ts",
+    "db:studio": "node --env-file-if-exists=../../.env node_modules/drizzle-kit/bin.cjs studio"
+  },
+  "dependencies": {
+    "@queuesprout/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@queuesprout/config": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.5"
+  }
+}

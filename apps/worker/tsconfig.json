@@ -1,0 +1,4 @@
+{
+  "extends": "@queuesprout/config/tsconfig/node.json",
+  "include": ["src", "tsup.config.ts"]
+}

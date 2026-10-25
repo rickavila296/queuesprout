@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+.next
+dist
+coverage
+.turbo
+packages/db/migrations/meta
+docs/private/
+CLAUDE.md

@@ -1,0 +1,44 @@
+# Local development services: Postgres 16 + SeaweedFS (S3-compatible, ADR-022).
+# Usage: pnpm services:up   (then pnpm db:migrate, then pnpm dev)
+name: queuesprout-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: queuesprout
+      POSTGRES_PASSWORD: queuesprout
+      POSTGRES_DB: queuesprout
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U queuesprout -d queuesprout']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # `weed mini` runs master, volume, filer and the S3 gateway in one process and creates
+  # the bucket on start. The AWS_* variables register the S3 access key. CORS allows any
+  # origin by default, so browser uploads work locally. Tested with SeaweedFS 4.50.
+  storage:
+    image: chrislusf/seaweedfs:latest
+    command: mini -dir=/data -bucket=queuesprout-media
+    environment:
+      AWS_ACCESS_KEY_ID: queuesprout
+      AWS_SECRET_ACCESS_KEY: queuesprout-s3-secret
+    ports:
+      - '8333:8333'
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:8333/healthz']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  postgres-data:
+  storage-data:

@@ -1,0 +1,40 @@
+/*
+ * QueueSprout design tokens (Design Brief, section 4). Neutral surfaces carry the UI;
+ * green is reserved for primary actions and success.
+ * Light primary is #23804A, not #2F9E5B: white text on #2F9E5B is 3.4:1 and fails WCAG AA.
+ * --warning fails AA as text on white; use it for dots, borders and icons only.
+ */
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --sprout-600: #23804a;
+  --sprout-500: #2f9e5b;
+  --sprout-100: #e6f6ec;
+  --sprout-fg: #ffffff;
+  --bg: #ffffff;
+  --surface: #f7f8f7;
+  --surface-hover: #eef0ee;
+  --border: #e3e6e4;
+  --text: #121614;
+  --text-muted: #5d6661;
+  --warning: #c98a12;
+  --danger: #d14343;
+  --info: #2f6fde;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --sprout-600: #3dbe70;
+  --sprout-500: #3dbe70;
+  --sprout-100: #13301f;
+  --sprout-fg: #0e1110;
+  --bg: #0e1110;
+  --surface: #161a18;
+  --surface-hover: #1d2220;
+  --border: #262b28;
+  --text: #ecefed;
+  --text-muted: #98a29c;
+  --warning: #e0a73a;
+  --danger: #f06464;
+  --info: #5b92f0;
+}

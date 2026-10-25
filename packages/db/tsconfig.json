@@ -1,0 +1,4 @@
+{
+  "extends": "@queuesprout/config/tsconfig/library.json",
+  "include": ["src", "drizzle.config.ts", "vitest.config.ts"]
+}

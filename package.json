@@ -1,0 +1,37 @@
+{
+  "name": "queuesprout",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration --concurrency=1",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "services:up": "docker compose -f docker/compose.dev.yml up -d --wait",
+    "services:down": "docker compose -f docker/compose.dev.yml down",
+    "db:generate": "pnpm --filter @queuesprout/db db:generate",
+    "db:migrate": "pnpm --filter @queuesprout/db db:migrate",
+    "db:studio": "pnpm --filter @queuesprout/db db:studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "16.4.3",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "turbo": "^2.11.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}

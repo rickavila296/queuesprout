@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint (incl. package boundary rules)
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Start SeaweedFS (S3)
+        run: |
+          docker run -d --name storage -p 8333:8333 \
+            -e AWS_ACCESS_KEY_ID=queuesprout -e AWS_SECRET_ACCESS_KEY=queuesprout-s3-secret \
+            chrislusf/seaweedfs:latest mini -dir=/data -bucket=queuesprout-media
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8333/healthz >/dev/null && exit 0
+            sleep 2
+          done
+          docker logs storage
+          exit 1
+
+      - name: Integration tests (migrations + RLS on fresh Postgres, presigned S3 uploads)
+        run: pnpm test:integration
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          TEST_S3_ENDPOINT: http://localhost:8333
+
+      - name: Migrations are in sync with the Drizzle schema
+        run: |
+          pnpm --filter @queuesprout/db exec drizzle-kit generate --name ci-drift-check
+          if [ -n "$(git status --porcelain packages/db/migrations)" ]; then
+            echo "::error::Schema changed without a migration. Run pnpm db:generate and commit it."
+            git status --porcelain packages/db/migrations
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm build

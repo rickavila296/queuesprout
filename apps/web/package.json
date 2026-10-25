@@ -1,0 +1,38 @@
+{
+  "name": "@queuesprout/web",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@queuesprout/auth": "workspace:*",
+    "@queuesprout/core": "workspace:*",
+    "@queuesprout/db": "workspace:*",
+    "@queuesprout/shared": "workspace:*",
+    "@queuesprout/ui": "workspace:*",
+    "better-auth": "1.7.13",
+    "geist": "^1.8.2",
+    "lucide-react": "^1.61.0",
+    "next": "16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@queuesprout/config": "workspace:*",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "postcss": "^8.5.31",
+    "tailwindcss": "^4.3.3",
+    "vitest": "^5.0.5"
+  }
+}
