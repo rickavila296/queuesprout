@@ -1,0 +1,108 @@
+import type { Metadata } from 'next';
+import { canManageMembers } from '@queuesprout/auth';
+import { getWorkspace, listChannels, type ChannelSummary } from '@queuesprout/db';
+import { Badge, Card } from '@queuesprout/ui';
+import { ConfirmButton } from '@/components/confirm-button';
+import { dataAccess } from '@/lib/db';
+import { providerLabel } from '@/lib/providers';
+import { workspaceIsMock } from '@/lib/publish-mode';
+import { requireWorkspace } from '@/lib/session';
+import { removeChannelAction } from './actions';
+import { DemoChannelForm } from './demo-channel-form';
+import { ProviderMark } from './provider-mark';
+
+export const metadata: Metadata = { title: 'Channels' };
+
+function health(c: ChannelSummary): { label: string; tone: 'success' | 'warning' | 'danger' } {
+  if (c.accountStatus === 'needs_reauth') return { label: 'Needs reconnect', tone: 'danger' };
+  if (c.accountStatus === 'revoked') return { label: 'Revoked', tone: 'danger' };
+  if (c.channelStatus === 'rate_limited') return { label: 'Rate limited', tone: 'warning' };
+  if (c.channelStatus === 'disabled') return { label: 'Disabled', tone: 'warning' };
+  if (c.channelStatus === 'target_missing') return { label: 'Not found', tone: 'danger' };
+  return { label: 'Active', tone: 'success' };
+}
+
+export default async function ChannelsPage({ params }: PageProps<'/w/[slug]/channels'>) {
+  const { slug } = await params;
+  const { ctx } = await requireWorkspace(slug);
+  // Same rule as members: admins manage channels.
+  const manage = canManageMembers(ctx);
+
+  const { channels, workspace } = await dataAccess().withWorkspace(ctx, async (tx) => ({
+    channels: await listChannels(tx, ctx.workspaceId),
+    workspace: await getWorkspace(tx, ctx.workspaceId),
+  }));
+  const mock = workspace ? workspaceIsMock(workspace) : false;
+
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold">Channels</h1>
+        <p className="text-muted">Where your posts go.</p>
+      </div>
+
+      {manage && mock && (
+        <Card className="flex flex-col gap-3">
+          <div>
+            <h2 className="font-medium">Add a demo channel</h2>
+            <p className="text-sm text-muted">
+              This workspace is in sandbox mode: posts run through the whole pipeline but never
+              leave QueueSprout. Demo channels need no sign-in.
+            </p>
+          </div>
+          <DemoChannelForm workspaceSlug={slug} />
+        </Card>
+      )}
+      {manage && !mock && (
+        <Card>
+          <p className="text-muted">
+            Connecting real accounts arrives with each platform&apos;s adapter, starting with
+            Bluesky.
+          </p>
+        </Card>
+      )}
+
+      <section aria-labelledby="channels-heading" className="flex flex-col gap-2">
+        <h2 id="channels-heading" className="font-medium">
+          {channels.length} {channels.length === 1 ? 'channel' : 'channels'}
+        </h2>
+        {channels.length === 0 ? (
+          <p className="text-muted">No channels yet.</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {channels.map((c) => {
+              const h = health(c);
+              return (
+                <li key={c.id} className="flex min-h-12 items-center gap-3 px-3 py-2">
+                  <ProviderMark provider={c.provider} className="size-7 text-sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{c.name}</p>
+                    <p className="truncate text-sm text-muted">
+                      {providerLabel(c.provider)}
+                      {c.handle ? ` · ${c.handle}` : ''}
+                    </p>
+                  </div>
+                  <Badge tone={h.tone}>{h.label}</Badge>
+                  {manage && (
+                    <form action={removeChannelAction}>
+                      <input type="hidden" name="workspaceSlug" value={slug} />
+                      <input type="hidden" name="channelId" value={c.id} />
+                      <ConfirmButton
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Remove ${c.name}`}
+                        confirmText={`Remove ${c.name}? Its posts, published or not, are deleted from QueueSprout too.`}
+                      >
+                        Remove
+                      </ConfirmButton>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}

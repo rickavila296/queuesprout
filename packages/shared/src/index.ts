@@ -5,3 +5,5 @@ export * from './publish-mode';
 export * from './workspace';
 export * from './publishing';
 export * from './limits';
+export * from './time';
+export * from './compose';

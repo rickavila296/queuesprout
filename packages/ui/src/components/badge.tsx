@@ -8,6 +8,9 @@ const badgeVariants = cva('inline-flex items-center rounded-sm px-1.5 py-0.5 tex
       neutral: 'bg-surface-hover text-muted',
       success: 'bg-sprout-100 text-sprout-600',
       danger: 'border border-danger text-danger',
+      // --warning and --info fail AA as text, so they tint the border and the text stays default.
+      warning: 'border border-warning text-text',
+      info: 'border border-info text-text',
     },
   },
   defaultVariants: { tone: 'neutral' },

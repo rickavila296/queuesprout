@@ -1,0 +1,1 @@
+ALTER TABLE "post_groups" ADD COLUMN "base_replies" text[] DEFAULT '{}'::text[] NOT NULL;

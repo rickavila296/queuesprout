@@ -40,6 +40,11 @@ export const postGroups = pgTable(
       .references(() => workspaces.id, { onDelete: 'cascade' }),
     createdBy: uuid('created_by').references(() => profiles.id, { onDelete: 'set null' }),
     baseBody: text('base_body').notNull().default(''),
+    /** Thread replies after base_body; channels without an override publish this thread. */
+    baseReplies: text('base_replies')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
