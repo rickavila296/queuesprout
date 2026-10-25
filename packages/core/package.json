@@ -5,7 +5,8 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./credentials": "./src/credentials/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@queuesprout/config": "workspace:*",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "@types/node": "^22.20.5"
   }
 }
