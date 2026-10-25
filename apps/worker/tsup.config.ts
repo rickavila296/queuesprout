@@ -8,6 +8,10 @@ export default defineConfig({
   target: 'node22',
   // Workspace packages ship TypeScript source, so bundle them; npm deps stay external.
   noExternal: [/^@queuesprout\//],
+  // Their CommonJS deps (pg, pg-boss internals) call require(); give the ESM bundle one.
+  banner: {
+    js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
+  },
   clean: true,
   sourcemap: true,
   // The bundle cannot find packages/db/migrations by relative path, so ship a copy.

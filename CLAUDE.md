@@ -33,7 +33,8 @@
 1. Add fixtures for each platform call to __fixtures__/ (pnpm fixtures:record <provider> redacts tokens).
 2. Write failing tests first: validate() table tests; publish() for success, 401, 429 with
    Retry-After, 5xx, and every pending-to-done transition and checkpoint resume.
-3. Implement until green. Tests never reach the network (MSW onUnhandledRequest: "error").
+3. Implement until green. Tests never reach the network: useMswServer() from
+   "@queuesprout/providers/testing" sets MSW 3's onUnhandledFrame: "error".
 4. Run pnpm lint && pnpm typecheck && pnpm test before every commit.
 
 ## Code style

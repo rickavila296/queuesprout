@@ -3,8 +3,10 @@
 **Write once. Schedule everywhere.** An open-source social media scheduler for 12 channels,
 with a public API and webhooks for n8n, Make and AI agents. Self-host it with four containers.
 
-> Status: **Phase 0, foundations.** Sign-in, workspaces, invites and roles work. Scheduling and
-> channels arrive in Phase 1.
+> Status: **Phase 1, scheduling core (in progress).** Sign-in, workspaces, invites and roles work.
+> The schema for connected accounts, channels and posts, encrypted credentials, the provider
+> adapter contract and the sandbox mock adapter are in; the worker dispatcher, composer and the
+> first real channels come next.
 
 Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
 clean-room build with no shared code (ADR-003).
@@ -49,8 +51,9 @@ apps/
   worker/     Node worker
 packages/
   shared/     Zod schemas, types, constants
-  core/       Domain logic (no framework, no I/O)
+  core/       Domain logic and token encryption (no framework, no I/O)
   db/         Drizzle schema, migrations, RLS, data access
+  providers/  One adapter per channel, the adapter contract, the sandbox mock adapter
   auth/       Better Auth config and role checks
   storage/    S3 client and presigned URLs
   ui/         Design tokens and shared components
@@ -68,7 +71,8 @@ Requirements: Node 22.12+, Docker, and Corepack (ships with Node).
 ```bash
 corepack enable
 pnpm install
-cp .env.example .env            # set BETTER_AUTH_SECRET (openssl rand -base64 32)
+cp .env.example .env            # set BETTER_AUTH_SECRET and TOKEN_ENCRYPTION_KEY
+                                # (each: openssl rand -base64 32)
 pnpm services:up                # Postgres + SeaweedFS
 pnpm db:migrate
 pnpm dev                        # http://localhost:3000
@@ -78,7 +82,9 @@ Without `RESEND_API_KEY`, sign-in and invite links print to the terminal running
 Google and GitHub buttons appear once their client id and secret are set in `.env`.
 
 Publishing runs in **mock mode** by default (`PUBLISH_MODE=mock`): the full pipeline runs with
-zero platform calls. Live publishing is for production only.
+zero platform calls. Live publishing is for production only. In mock mode, text containing
+`[[mock:rate_limit]]`, `[[mock:auth]]`, `[[mock:transient]]` or `[[mock:timeout]]` fails that
+way, to exercise retries.
 
 | Command                                      | What it does                                            |
 | -------------------------------------------- | ------------------------------------------------------- |

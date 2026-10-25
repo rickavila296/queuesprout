@@ -12,7 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@queuesprout/core": "workspace:*",
     "@queuesprout/db": "workspace:*",
+    "@queuesprout/providers": "workspace:*",
     "@queuesprout/shared": "workspace:*",
     "pg-boss": "^12.38.0",
     "pino": "^10.4.0",

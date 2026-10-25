@@ -23,6 +23,14 @@ const boundary = (files, banned, message) => ({
 
 const ALL = ['shared', 'core', 'providers', 'db', 'storage', 'auth', 'ui', 'ai'];
 
+/** Credential schema and queries: packages/db and apps/worker only (ADR-010). */
+const CREDENTIAL_MODULES = [
+  '@queuesprout/db/credentials',
+  '@queuesprout/db/schema/credentials',
+  '**/schema/credentials',
+  '**/queries/credentials',
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -104,6 +112,22 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['packages/auth/**', 'packages/storage/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: CREDENTIAL_MODULES,
+              message: 'Credential tables are read only by apps/worker.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   boundary(
     ['packages/ui/**'],
     ['db', 'auth', 'storage', 'providers', 'ai'],
@@ -121,12 +145,21 @@ export default tseslint.config(
               name: '@queuesprout/providers',
               message: 'Import "@queuesprout/providers/client"; only apps/worker calls publish().',
             },
+            {
+              name: '@queuesprout/core/credentials',
+              importNames: ['decryptSecret', 'decryptCredentials', 'getFreshToken'],
+              message: 'Only apps/worker decrypts credentials or refreshes tokens.',
+            },
           ],
           patterns: [
             {
-              group: ['@queuesprout/db/schema/credentials', '**/schema/credentials'],
+              group: CREDENTIAL_MODULES,
               message:
                 'Credential tables are read only by packages/core/credentials and apps/worker.',
+            },
+            {
+              group: ['@queuesprout/providers/testing'],
+              message: 'The adapter test harness is for tests only.',
             },
           ],
         },
