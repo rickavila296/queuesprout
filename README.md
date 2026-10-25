@@ -6,7 +6,8 @@ with a public API and webhooks for n8n, Make and AI agents. Self-host it with fo
 > Status: **Phase 1, scheduling core (in progress).** Sign-in, workspaces, invites and roles work.
 > In sandbox mode you can add demo channels, write a post or thread with per-channel versions
 > and live checks, schedule it, and watch the worker publish it to mock channels. The calendar
-> has a list view; week and month views and the first real channels come next.
+> has week, month and list views with drag (or keyboard) to reschedule. The first real channels
+> come next.
 
 Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
 clean-room build with no shared code (ADR-003).

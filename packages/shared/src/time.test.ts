@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, startOfWallDay, toWallDate, toWallTime, wallTimeToUtc } from './time';
+import {
+  addDays,
+  addMonths,
+  startOfMonthGrid,
+  startOfWallDay,
+  startOfWeek,
+  toWallDate,
+  toWallTime,
+  wallTimeToUtc,
+  weekdayIndex,
+} from './time';
 
 describe('wallTimeToUtc', () => {
   it.each([
@@ -58,5 +68,25 @@ describe('day helpers', () => {
   it('adds days across months and years', () => {
     expect(addDays('2026-12-30', 3)).toBe('2027-01-02');
     expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+});
+
+describe('calendar grid helpers', () => {
+  it('starts weeks on Monday', () => {
+    expect(weekdayIndex('2026-10-26')).toBe(0); // Monday
+    expect(weekdayIndex('2026-11-01')).toBe(6); // Sunday
+    expect(startOfWeek('2026-11-01')).toBe('2026-10-26');
+    expect(startOfWeek('2026-10-26')).toBe('2026-10-26');
+  });
+
+  it('starts the month grid on the Monday before the 1st', () => {
+    expect(startOfMonthGrid('2026-11-17')).toBe('2026-10-26');
+    expect(startOfMonthGrid('2026-06-30')).toBe('2026-06-01'); // June 1 2026 is a Monday
+  });
+
+  it('adds months, clamping the day', () => {
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
+    expect(addMonths('2026-12-15', 1)).toBe('2027-01-15');
+    expect(addMonths('2026-03-31', -1)).toBe('2026-02-28');
   });
 });

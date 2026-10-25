@@ -14,6 +14,7 @@ const STATUS: Record<PostStatus, { label: string; dot: string }> = {
 };
 
 export const statusLabel = (s: PostStatus) => STATUS[s].label;
+export const statusDotClass = (s: PostStatus) => STATUS[s].dot;
 
 /** A status dot with its label; the label is the accessible part, color only repeats it. */
 export function PostStatusDot({ status, className }: { status: PostStatus; className?: string }) {

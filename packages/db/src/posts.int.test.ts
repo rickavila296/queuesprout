@@ -8,6 +8,7 @@ import {
   getPostGroup,
   listCalendarPosts,
   listUnscheduledDrafts,
+  reschedulePost,
   savePostGroup,
   type SavePostGroupInput,
 } from './queries/posts';
@@ -352,5 +353,62 @@ describe('composer queries', () => {
       .where(eq(accountCredentials.accountId, extra.accountId));
     expect(secrets).toEqual([]);
     expect(await load(acme, created.groupId)).toMatchObject({ posts: [] });
+  });
+
+  it('reschedules one post from the version it saw', async () => {
+    const created = await save(asEd, {
+      baseItems: ['move me'],
+      channels: [
+        { channelId: bsky, items: ['move me'] },
+        { channelId: masto, items: ['move me'] },
+      ],
+      status: 'scheduled',
+      scheduledAt: at,
+    });
+    if (!created.ok) throw new Error('create failed');
+    const [bskyId = '', mastoId = ''] = created.postIds;
+    const version = (await load(asEd, created.groupId))?.posts[0]?.version ?? 0;
+    const later = new Date('2026-11-05T09:00:00Z');
+    const earliest = new Date('2026-11-01T00:00:00Z');
+    const move = (postId: string, v: number, c = asEd, scheduledAt = later) =>
+      da.withWorkspace(c, (tx) =>
+        reschedulePost(tx, {
+          workspaceId: c.workspaceId,
+          postId,
+          version: v,
+          scheduledAt,
+          earliest,
+        }),
+      );
+
+    const past = new Date('2026-10-30T09:00:00Z');
+    expect(await move(bskyId, version, asEd, past)).toEqual({ ok: false, error: 'past' });
+    expect(await move(bskyId, version)).toEqual({ ok: true, version: version + 1 });
+    expect(await move(bskyId, version)).toEqual({ ok: false, error: 'conflict' });
+    const group = await load(asEd, created.groupId);
+    expect(group?.posts.map((p) => p.scheduledAt?.toISOString())).toEqual([
+      later.toISOString(),
+      at.toISOString(),
+    ]);
+
+    await t.owner.update(posts).set({ status: 'queued' }).where(eq(posts.id, mastoId));
+    const mastoVersion = group?.posts[1]?.version ?? 0;
+    expect(await move(mastoId, mastoVersion + 1)).toEqual({ ok: false, error: 'locked' });
+    expect(await move(randomUUID(), 1)).toEqual({ ok: false, error: 'not_found' });
+    // Viewers see the post but RLS hides it from updates.
+    expect(await move(bskyId, version + 1, asVic)).toEqual({ ok: false, error: 'conflict' });
+
+    // Drafts may sit in the past: they never publish on their own.
+    const draft = await save(asEd, {
+      baseItems: ['old idea'],
+      channels: [{ channelId: bsky, items: ['old idea'] }],
+      status: 'draft',
+      scheduledAt: at,
+    });
+    if (!draft.ok) throw new Error('draft failed');
+    const draftVersion = (await load(asEd, draft.groupId))?.posts[0]?.version ?? 0;
+    expect(await move(draft.postIds[0] ?? '', draftVersion, asEd, past)).toMatchObject({
+      ok: true,
+    });
   });
 });
