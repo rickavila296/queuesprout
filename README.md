@@ -5,8 +5,9 @@ with a public API and webhooks for n8n, Make and AI agents. Self-host it with fo
 
 > Status: **Phase 1, scheduling core (in progress).** Sign-in, workspaces, invites and roles work.
 > The schema for connected accounts, channels and posts, encrypted credentials, the provider
-> adapter contract and the sandbox mock adapter are in; the worker dispatcher, composer and the
-> first real channels come next.
+> adapter contract, the sandbox mock adapter and the worker's publishing pipeline (dispatcher,
+> step jobs, retries, token refresh) are in; the composer, calendar and first real channels come
+> next.
 
 Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
 clean-room build with no shared code (ADR-003).
@@ -86,13 +87,13 @@ zero platform calls. Live publishing is for production only. In mock mode, text 
 `[[mock:rate_limit]]`, `[[mock:auth]]`, `[[mock:transient]]` or `[[mock:timeout]]` fails that
 way, to exercise retries.
 
-| Command                                      | What it does                                            |
-| -------------------------------------------- | ------------------------------------------------------- |
-| `pnpm dev`                                   | Web and worker in watch mode                            |
-| `pnpm lint` / `pnpm typecheck` / `pnpm test` | The checks CI runs                                      |
-| `pnpm test:integration`                      | RLS tests against a real Postgres (`TEST_DATABASE_URL`) |
-| `pnpm db:generate`                           | Generate a migration after a schema change              |
-| `pnpm db:migrate`                            | Apply migrations (owner role)                           |
+| Command                                      | What it does                                             |
+| -------------------------------------------- | -------------------------------------------------------- |
+| `pnpm dev`                                   | Web and worker in watch mode                             |
+| `pnpm lint` / `pnpm typecheck` / `pnpm test` | The checks CI runs                                       |
+| `pnpm test:integration`                      | RLS and pipeline tests on Postgres (`TEST_DATABASE_URL`) |
+| `pnpm db:generate`                           | Generate a migration after a schema change               |
+| `pnpm db:migrate`                            | Apply migrations (owner role)                            |
 
 ## Self-hosting
 

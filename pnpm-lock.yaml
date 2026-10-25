@@ -136,6 +136,9 @@ importers:
       '@types/node':
         specifier: ^22.20.5
         version: 22.20.5
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)
       pino-pretty:
         specifier: ^13.2.0
         version: 13.2.0

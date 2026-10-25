@@ -1,7 +1,8 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import type { Database, Tx } from '../client';
 import { connectedAccounts } from '../schema/accounts';
 import { accountCredentials } from '../schema/credentials';
+import { workspaces } from '../schema/workspaces';
 
 /**
  * Credential access for apps/worker only (ADR-010, ADR-017). Exported as
@@ -72,4 +73,40 @@ export async function withLockedCredentials<T>(
       },
     });
   });
+}
+
+export interface AccountToRefresh {
+  accountId: string;
+  workspaceId: string;
+  provider: (typeof connectedAccounts.$inferSelect)['provider'];
+  externalAccountId: string;
+  workspaceIsSandbox: boolean;
+}
+
+/** Active accounts with a refresh token whose access token expires before `before`. */
+export async function listAccountsToRefresh(
+  db: Database,
+  before: Date,
+  limit = 100,
+): Promise<AccountToRefresh[]> {
+  return db
+    .select({
+      accountId: connectedAccounts.id,
+      workspaceId: connectedAccounts.workspaceId,
+      provider: connectedAccounts.provider,
+      externalAccountId: connectedAccounts.externalAccountId,
+      workspaceIsSandbox: workspaces.isSandbox,
+    })
+    .from(accountCredentials)
+    .innerJoin(connectedAccounts, eq(connectedAccounts.id, accountCredentials.accountId))
+    .innerJoin(workspaces, eq(workspaces.id, connectedAccounts.workspaceId))
+    .where(
+      and(
+        eq(connectedAccounts.status, 'active'),
+        isNotNull(accountCredentials.refreshTokenEnc),
+        lte(accountCredentials.expiresAt, before),
+      ),
+    )
+    .orderBy(asc(accountCredentials.expiresAt))
+    .limit(limit);
 }

@@ -6,7 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./credentials": "./src/credentials/index.ts"
+    "./credentials": "./src/credentials/index.ts",
+    "./publishing": "./src/publishing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -3,14 +3,24 @@ import { fileURLToPath } from 'node:url';
 import { PgBoss } from 'pg-boss';
 import { createDb, ping } from '@queuesprout/db';
 import { MIGRATIONS_FOLDER, runMigrations } from '@queuesprout/db/migrate';
+import { createAdapterPicker } from './adapters';
 import { parseWorkerEnv } from './env';
 import { createLogger } from './logger';
+import { dispatchOnce, type Enqueue } from './publishing/dispatcher';
+import { refreshExpiringTokens } from './publishing/refresh';
+import { runStep, type PipelineDeps } from './publishing/step';
 
 const env = parseWorkerEnv(process.env);
 const log = createLogger(env.LOG_LEVEL, env.NODE_ENV === 'development');
 
-/** Queue names. Phase 1 adds publish.step, dispatcher and token.refresh. */
-const QUEUES = { heartbeat: 'system.heartbeat' } as const;
+const QUEUES = {
+  heartbeat: 'system.heartbeat',
+  publishStep: 'publish.step',
+  tokenRefresh: 'token.refresh',
+} as const;
+
+/** The dispatcher reads due posts from Postgres this often. */
+const DISPATCH_INTERVAL_MS = 15_000;
 
 /** dist/migrations in the built image; packages/db/migrations under tsx. */
 function migrationsFolder(): string {
@@ -42,6 +52,58 @@ async function main(): Promise<void> {
     log.debug('heartbeat');
   });
 
+  const deps: PipelineDeps = {
+    db,
+    keyring: env.TOKEN_ENCRYPTION_KEY,
+    pickAdapter: createAdapterPicker(env),
+    now: () => new Date(),
+    log,
+  };
+
+  // stately: at most one queued and one active step per post (singletonKey = post id).
+  await boss.createQueue(QUEUES.publishStep, {
+    policy: 'stately',
+    expireInSeconds: 300,
+    retryLimit: 2,
+    retryDelay: 30,
+  });
+  const enqueue: Enqueue = async (postId, runAt) => {
+    await boss.send(
+      QUEUES.publishStep,
+      { postId },
+      { singletonKey: postId, ...(runAt && { startAfter: runAt }) },
+    );
+  };
+  await boss.work<{ postId: string }>(
+    QUEUES.publishStep,
+    { localConcurrency: 5 },
+    async ([job]) => {
+      if (!job) return;
+      const follow = await runStep(deps, job.data.postId);
+      if (follow.next === 'now') await enqueue(job.data.postId);
+      if (follow.next === 'at') await enqueue(job.data.postId, follow.at);
+    },
+  );
+
+  await boss.createQueue(QUEUES.tokenRefresh, { policy: 'singleton' });
+  await boss.schedule(QUEUES.tokenRefresh, '*/10 * * * *');
+  await boss.work(QUEUES.tokenRefresh, async () => {
+    const summary = await refreshExpiringTokens(deps);
+    log.info(summary, 'token refresh finished');
+  });
+
+  let dispatching = false;
+  const dispatcher = setInterval(() => {
+    if (dispatching) return;
+    dispatching = true;
+    dispatchOnce(db, enqueue, new Date())
+      .then((n) => n > 0 && log.info({ claimed: n }, 'dispatched posts'))
+      .catch((error: unknown) => log.error({ err: error }, 'dispatch failed'))
+      .finally(() => {
+        dispatching = false;
+      });
+  }, DISPATCH_INTERVAL_MS);
+
   log.info({ publishMode: env.PUBLISH_MODE }, 'worker started');
 
   let stopping = false;
@@ -49,6 +111,7 @@ async function main(): Promise<void> {
     if (stopping) return;
     stopping = true;
     log.info({ signal }, 'shutting down');
+    clearInterval(dispatcher);
     // Lets in-flight jobs finish (each publish step is bounded to 60 s).
     await boss.stop({ graceful: true, timeout: 70_000 });
     await db.$client.end();
