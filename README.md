@@ -4,10 +4,9 @@
 with a public API and webhooks for n8n, Make and AI agents. Self-host it with four containers.
 
 > Status: **Phase 1, scheduling core (in progress).** Sign-in, workspaces, invites and roles work.
-> The schema for connected accounts, channels and posts, encrypted credentials, the provider
-> adapter contract, the sandbox mock adapter and the worker's publishing pipeline (dispatcher,
-> step jobs, retries, token refresh) are in; the composer, calendar and first real channels come
-> next.
+> In sandbox mode you can add demo channels, write a post or thread with per-channel versions
+> and live checks, schedule it, and watch the worker publish it to mock channels. The calendar
+> has a list view; week and month views and the first real channels come next.
 
 Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
 clean-room build with no shared code (ADR-003).

@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     '@queuesprout/auth',
     '@queuesprout/core',
     '@queuesprout/db',
+    '@queuesprout/providers',
     '@queuesprout/shared',
     '@queuesprout/ui',
   ],

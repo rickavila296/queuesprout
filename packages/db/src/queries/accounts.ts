@@ -79,6 +79,7 @@ export interface ChannelSummary {
   name: string;
   handle: string | null;
   avatarUrl: string | null;
+  defaultSettings: Record<string, unknown>;
   channelStatus: (typeof channels.$inferSelect)['status'];
   accountId: string;
   accountStatus: (typeof connectedAccounts.$inferSelect)['status'];
@@ -93,6 +94,7 @@ export async function listChannels(tx: Tx, workspaceId: string): Promise<Channel
       name: channels.name,
       handle: channels.handle,
       avatarUrl: channels.avatarUrl,
+      defaultSettings: channels.defaultSettings,
       channelStatus: channels.status,
       accountId: connectedAccounts.id,
       accountStatus: connectedAccounts.status,
@@ -107,4 +109,34 @@ export async function listChannels(tx: Tx, workspaceId: string): Promise<Channel
     )
     .where(eq(channels.workspaceId, workspaceId))
     .orderBy(asc(channels.provider), asc(channels.name));
+}
+
+/**
+ * Removes a channel and, when it was the account's last one, the account and its
+ * secrets. Its posts go with it (cascade), so the UI says so first. Admins only.
+ */
+export async function removeChannel(
+  tx: Tx,
+  workspaceId: string,
+  channelId: string,
+): Promise<boolean> {
+  const removed = await tx
+    .delete(channels)
+    .where(and(eq(channels.id, channelId), eq(channels.workspaceId, workspaceId)))
+    .returning({ accountId: channels.accountId });
+  const accountId = removed[0]?.accountId;
+  if (!accountId) return false;
+  const left = await tx
+    .select({ id: channels.id })
+    .from(channels)
+    .where(eq(channels.accountId, accountId))
+    .limit(1);
+  if (left.length === 0) {
+    await tx
+      .delete(connectedAccounts)
+      .where(
+        and(eq(connectedAccounts.id, accountId), eq(connectedAccounts.workspaceId, workspaceId)),
+      );
+  }
+  return true;
 }

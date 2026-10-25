@@ -53,6 +53,9 @@ importers:
       '@queuesprout/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@queuesprout/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
       '@queuesprout/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -30,7 +30,7 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
 
   const nav: NavItem[] = [
     { label: 'Calendar', href: base, icon: CalendarDays },
-    { label: 'Channels', href: null, icon: Radio, soon: 'Phase 1' },
+    { label: 'Channels', href: `${base}/channels`, icon: Radio },
     { label: 'Media', href: null, icon: ImageIcon, soon: 'Phase 2' },
     { label: 'Members', href: `${base}/settings/members`, icon: Users },
     { label: 'Settings', href: null, icon: Settings, soon: 'Soon' },
