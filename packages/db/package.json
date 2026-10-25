@@ -9,7 +9,9 @@
     "./schema": "./src/schema/index.ts",
     "./schema/credentials": "./src/schema/credentials.ts",
     "./credentials": "./src/queries/credentials.ts",
-    "./migrate": "./src/migrate.ts"
+    "./migrate": "./src/migrate.ts",
+    "./publishing": "./src/queries/publishing.ts",
+    "./testing": "./src/test-utils.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

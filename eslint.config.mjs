@@ -158,8 +158,12 @@ export default tseslint.config(
                 'Credential tables are read only by packages/core/credentials and apps/worker.',
             },
             {
-              group: ['@queuesprout/providers/testing'],
-              message: 'The adapter test harness is for tests only.',
+              group: ['@queuesprout/providers/testing', '@queuesprout/db/testing'],
+              message: 'Test harnesses are for tests only.',
+            },
+            {
+              group: ['@queuesprout/db/publishing', '@queuesprout/core/publishing'],
+              message: 'The publishing pipeline runs in apps/worker only.',
             },
           ],
         },
