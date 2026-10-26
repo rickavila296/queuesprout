@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import type { PublishStep } from '@queuesprout/shared';
 import { BASE_DEFINITIONS } from '../definitions';
@@ -91,6 +92,23 @@ describe('mock adapter', () => {
       expect((await adapter.publish(buildPublishContext({ bodies }))).kind).toBe('done');
       const second = await adapter.publish(buildPublishContext({ bodies, position: 1 }));
       expect(second.kind).toBe('error');
+    });
+
+    it('[[mock:transient-once]] fails an item once, then publishes it', async () => {
+      const adapter = createMockAdapter(BASE_DEFINITIONS.discord, instant);
+      const ctx = buildPublishContext({
+        provider: 'discord',
+        bodies: ['hi [[mock:transient-once]]'],
+      });
+      const item = { ...ctx.item, id: randomUUID() };
+      expect(await adapter.publish({ ...ctx, item })).toMatchObject({
+        kind: 'error',
+        errorKind: 'transient',
+      });
+      expect((await adapter.publish({ ...ctx, item })).kind).toBe('done');
+      // Another item with the marker gets its own failure.
+      const other = { ...ctx.item, id: randomUUID() };
+      expect((await adapter.publish({ ...ctx, item: other })).kind).toBe('error');
     });
 
     it('ignores text that only looks similar', () => {
