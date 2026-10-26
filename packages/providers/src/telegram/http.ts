@@ -17,12 +17,21 @@ interface BotApiResponse<T> {
 export async function telegram<T>(
   token: string,
   method: string,
-  options: { body?: Record<string, unknown>; signal: AbortSignal; now?: () => Date },
+  options: {
+    body?: Record<string, unknown>;
+    /** Multipart body (photo uploads); fetch sets the boundary header. */
+    form?: FormData;
+    signal: AbortSignal;
+    now?: () => Date;
+  },
 ): Promise<T> {
   const { res, text } = await fetchFresh(`${API_URL}/bot${token}/${method}`, {
     method: 'POST',
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify(options.body ?? {}),
+    headers: {
+      accept: 'application/json',
+      ...(!options.form && { 'content-type': 'application/json' }),
+    },
+    body: options.form ?? JSON.stringify(options.body ?? {}),
     signal: options.signal,
     redirect: 'error',
   });

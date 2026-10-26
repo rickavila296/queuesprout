@@ -61,6 +61,15 @@ export function toStepError(error: unknown): StepError {
         raw,
       };
     }
+    if (error.code === 'missing_scope') {
+      return {
+        kind: 'error',
+        errorKind: 'auth',
+        message:
+          'The Slack app is missing a scope (images need files:write). Add it, reinstall the app and reconnect with the new token.',
+        raw,
+      };
+    }
     if (AUTH.has(error.code)) {
       const inChannel = ['channel_not_found', 'not_in_channel', 'is_archived'].includes(error.code);
       return {

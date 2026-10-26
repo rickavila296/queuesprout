@@ -9,7 +9,13 @@ import { API_URL } from './limits';
 export async function discord<T>(
   method: 'GET' | 'POST',
   path: string,
-  options: { body?: unknown; signal: AbortSignal; now?: () => Date },
+  options: {
+    body?: unknown;
+    /** Multipart body (attachments); fetch sets the boundary header. */
+    form?: FormData;
+    signal: AbortSignal;
+    now?: () => Date;
+  },
 ): Promise<T> {
   const { res, text } = await fetchFresh(`${API_URL}${path}`, {
     method,
@@ -17,7 +23,7 @@ export async function discord<T>(
       accept: 'application/json',
       ...(options.body !== undefined && { 'content-type': 'application/json' }),
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
     signal: options.signal,
     redirect: 'error',
   });

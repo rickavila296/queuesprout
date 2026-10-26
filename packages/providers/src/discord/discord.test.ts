@@ -249,3 +249,102 @@ describe('publish()', () => {
     });
   });
 });
+
+describe('publish() with images', () => {
+  const TWO = [
+    { id: 'm1', alt: 'A green square' },
+    { id: 'm2', alt: '' },
+  ];
+
+  it('sends the images as files with payload_json and alt text descriptions', async () => {
+    let payload: unknown;
+    const files: { field: string; name: string; type: string; size: number }[] = [];
+    server.use(
+      http.post(hook, async ({ request }) => {
+        const form = await request.formData();
+        payload = JSON.parse(String(form.get('payload_json')));
+        for (const [field, value] of form.entries()) {
+          if (value instanceof File) {
+            files.push({ field, name: value.name, type: value.type, size: value.size });
+          }
+        }
+        return HttpResponse.json(fixture('message'));
+      }),
+    );
+    const step = await discordAdapter.publish(ctx({ bodies: ['Look'], media: [TWO] }));
+    expect(step).toMatchObject({ kind: 'done', externalId: '1300000000000000010' });
+    expect(payload).toEqual({
+      content: 'Look',
+      allowed_mentions: { parse: ['users', 'roles'] },
+      attachments: [
+        { id: 0, filename: 'image-1.png', description: 'A green square' },
+        { id: 1, filename: 'image-2.png' },
+      ],
+    });
+    expect(files).toEqual([
+      { field: 'files[0]', name: 'image-1.png', type: 'image/png', size: 11 },
+      { field: 'files[1]', name: 'image-2.png', type: 'image/png', size: 11 },
+    ]);
+  });
+
+  it('splits the message upload limit between the images', async () => {
+    server.use(http.post(hook, () => HttpResponse.json(fixture('message'))));
+    const specs: { maxBytes: number }[] = [];
+    await discordAdapter.publish(
+      ctx({
+        media: [Array.from({ length: 4 }, (_, i) => ({ id: `m${i}` }))],
+        resolver: {
+          getFile: async (_id, spec) => {
+            specs.push(spec);
+            return {
+              ok: true,
+              file: { bytes: new Uint8Array([1]), mime: 'image/jpeg', width: 1, height: 1 },
+            };
+          },
+        },
+      }),
+    );
+    expect(specs.map((s) => s.maxBytes)).toEqual([2_375_000, 2_375_000, 2_375_000, 2_375_000]);
+  });
+
+  it('retries while an image is still being checked, and fails one that is gone', async () => {
+    let calls = 0;
+    server.use(
+      http.post(hook, () => {
+        calls++;
+        return HttpResponse.json(fixture('message'));
+      }),
+    );
+    const resolve = (retryable: boolean) =>
+      discordAdapter.publish(
+        ctx({
+          media: [[{ id: 'm1' }]],
+          resolver: { getFile: async () => ({ ok: false, retryable, message: 'nope' }) },
+        }),
+      );
+    expect(await resolve(true)).toMatchObject({ kind: 'error', errorKind: 'transient' });
+    expect(await resolve(false)).toMatchObject({ kind: 'error', errorKind: 'validation' });
+    expect(calls).toBe(0);
+  });
+
+  it('maps a refused upload like any other error', async () => {
+    server.use(http.post(hook, () => errorResponse('error-invalid-body', 400)));
+    expect(await discordAdapter.publish(ctx({ media: [TWO] }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'validation',
+    });
+  });
+
+  it('validates image count and alt text length', () => {
+    const codes = (media: { id: string; alt?: string }[]) =>
+      discordAdapter
+        .validate(ctx({ media: [media] }).post, [])
+        .filter((i) => i.severity === 'error')
+        .map((i) => i.code);
+    expect(codes(TWO)).toEqual([]);
+    expect(codes(Array.from({ length: 11 }, (_, i) => ({ id: `m${i}` })))).toEqual([
+      'too_many_media',
+    ]);
+    expect(codes([{ id: 'm1', alt: 'x'.repeat(1025) }])).toEqual(['alt_text_too_long']);
+  });
+});

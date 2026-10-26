@@ -44,7 +44,7 @@ function connectFailure(error: unknown, what: string): ConnectError {
   if (error instanceof SlackError && error.code === 'missing_scope') {
     return new ConnectError(
       'rejected',
-      'The Slack app needs the chat:write, channels:read and groups:read scopes. Add them, reinstall the app and copy the new token.',
+      'The Slack app needs the chat:write, channels:read, groups:read and files:write scopes. Add them, reinstall the app and copy the new token.',
     );
   }
   if (error instanceof SlackError && error.status < 500) {

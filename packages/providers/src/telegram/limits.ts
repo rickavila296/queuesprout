@@ -1,7 +1,17 @@
 import { PLATFORM_LIMITS, type PlatformLimits } from '@queuesprout/shared';
+import type { MediaFileSpec } from '../contract';
 
 /** A text message: 4,096 characters, no threads of our own. */
 export const TELEGRAM_LIMITS: PlatformLimits = PLATFORM_LIMITS.telegram;
+
+/** A caption on photos is much shorter than a text message. */
+export const MAX_CAPTION_CHARS = 1024;
+/** sendPhoto takes up to 10 MB, with width plus height at most 10,000 pixels. */
+export const IMAGE_SPEC: MediaFileSpec = {
+  maxBytes: 10_000_000,
+  maxEdgePx: 5000,
+  mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+};
 
 export const API_URL = 'https://api.telegram.org';
 export const WEB_URL = 'https://t.me';

@@ -377,3 +377,178 @@ describe('publish()', () => {
     });
   });
 });
+
+describe('publish() with images', () => {
+  const UPLOAD = 'https://files.slack.com/upload/v1/:ticket';
+  const TWO = [
+    { id: 'm1', alt: 'A green square' },
+    { id: 'm2', alt: '' },
+  ];
+
+  /** Answers the upload flow with file ids F…101, F…102…; records every call. */
+  function uploadFlow() {
+    const seen = {
+      urlRequests: [] as Record<string, string>[],
+      uploads: [] as { type: string | null; size: number; auth: string | null }[],
+      completed: [] as unknown[],
+      messages: [] as Record<string, string>[],
+    };
+    server.use(
+      http.post(api('files.getUploadURLExternal'), async ({ request }) => {
+        seen.urlRequests.push(await form(request));
+        const n = 100 + seen.urlRequests.length;
+        return HttpResponse.json({
+          ...fixture<Record<string, unknown>>('get-upload-url-external'),
+          upload_url: `https://files.slack.com/upload/v1/ticket${n}`,
+          file_id: `F0000000${n}`,
+        });
+      }),
+      http.post(UPLOAD, async ({ request }) => {
+        seen.uploads.push({
+          type: request.headers.get('content-type'),
+          size: (await request.arrayBuffer()).byteLength,
+          auth: request.headers.get('authorization'),
+        });
+        return new HttpResponse('OK');
+      }),
+      http.post(api('files.completeUploadExternal'), async ({ request }) => {
+        seen.completed.push(JSON.parse((await form(request)).files ?? '[]'));
+        return reply('complete-upload-external');
+      }),
+      http.post(api('chat.postMessage'), async ({ request }) => {
+        seen.messages.push(await form(request));
+        return reply('post-message');
+      }),
+    );
+    return seen;
+  }
+
+  it('uploads private files, then posts them as image blocks with alt text', async () => {
+    const seen = uploadFlow();
+    const step = await slackAdapter.publish(ctx({ bodies: ['Fresh <roast>'], media: [TWO] }));
+    expect(step).toMatchObject({ kind: 'done', externalId: '1793000000.000100' });
+
+    expect(seen.urlRequests).toEqual([
+      { filename: 'image-1.png', length: '11', alt_txt: 'A green square' },
+      { filename: 'image-2.png', length: '11' },
+    ]);
+    // The bytes go to Slack's upload host without the bot token.
+    expect(seen.uploads).toEqual([
+      { type: 'image/png', size: 11, auth: null },
+      { type: 'image/png', size: 11, auth: null },
+    ]);
+    expect(seen.completed).toEqual([
+      [
+        { id: 'F0000000101', title: 'image-1.png' },
+        { id: 'F0000000102', title: 'image-2.png' },
+      ],
+    ]);
+    const message = seen.messages[0] ?? {};
+    expect(message.channel).toBe(CHANNEL);
+    expect(message.text).toBe('Fresh &lt;roast&gt;');
+    expect(JSON.parse(message.blocks ?? '[]')).toEqual([
+      { type: 'section', text: { type: 'mrkdwn', text: 'Fresh &lt;roast&gt;' } },
+      { type: 'image', slack_file: { id: 'F0000000101' }, alt_text: 'A green square' },
+      { type: 'image', slack_file: { id: 'F0000000102' }, alt_text: 'Image' },
+    ]);
+  });
+
+  it('posts images with no text, and splits long text into sections', async () => {
+    const seen = uploadFlow();
+    await slackAdapter.publish(ctx({ bodies: [''], media: [[{ id: 'm1' }]] }));
+    expect(seen.messages[0]?.text).toBe('Image');
+    expect(JSON.parse(seen.messages[0]?.blocks ?? '[]')).toHaveLength(1);
+
+    await slackAdapter.publish(ctx({ bodies: ['x'.repeat(7000)], media: [[{ id: 'm1' }]] }));
+    const blocks = JSON.parse(seen.messages[1]?.blocks ?? '[]') as { type: string }[];
+    expect(blocks.map((b) => b.type)).toEqual(['section', 'section', 'section', 'image']);
+  });
+
+  it('waits for Slack to process the files, then posts them without uploading again', async () => {
+    const seen = uploadFlow();
+    let attempts = 0;
+    server.use(
+      http.post(api('chat.postMessage'), async ({ request }) => {
+        seen.messages.push(await form(request));
+        attempts++;
+        return attempts === 1 ? reply('error-invalid-blocks') : reply('post-message');
+      }),
+    );
+    const first = await slackAdapter.publish(ctx({ media: [TWO] }));
+    expect(first).toMatchObject({
+      kind: 'pending',
+      checkpoint: {
+        stage: 'files_uploaded',
+        childContainerIds: ['F0000000101', 'F0000000102'],
+        data: { tries: 1 },
+      },
+      pollAfterMs: 2000,
+    });
+    if (first.kind !== 'pending') return;
+
+    const second = await slackAdapter.publish(ctx({ media: [TWO], checkpoint: first.checkpoint }));
+    expect(second).toMatchObject({ kind: 'done' });
+    expect(seen.urlRequests).toHaveLength(2);
+    expect(seen.completed).toHaveLength(1);
+  });
+
+  it('gives up on files that never become usable', async () => {
+    uploadFlow();
+    server.use(http.post(api('chat.postMessage'), () => reply('error-invalid-blocks')));
+    const checkpoint = {
+      stage: 'files_uploaded',
+      childContainerIds: ['F0000000101'],
+      startedAt: new Date().toISOString(),
+      data: { tries: 9 },
+    };
+    expect(await slackAdapter.publish(ctx({ media: [TWO], checkpoint }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'validation',
+    });
+  });
+
+  it('asks for the files:write scope when the token lacks it', async () => {
+    server.use(http.post(api('files.getUploadURLExternal'), () => reply('error-missing-scope')));
+    expect(await slackAdapter.publish(ctx({ media: [TWO] }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'auth',
+      message: expect.stringMatching(/files:write/),
+    });
+  });
+
+  it('never sends bytes to a host other than files.slack.com', async () => {
+    const seen = uploadFlow();
+    server.use(
+      http.post(api('files.getUploadURLExternal'), () =>
+        HttpResponse.json({ ok: true, upload_url: 'https://evil.test/x', file_id: 'F1' }),
+      ),
+    );
+    expect(await slackAdapter.publish(ctx({ media: [TWO] }))).toMatchObject({ kind: 'error' });
+    expect(seen.uploads).toHaveLength(0);
+    expect(seen.messages).toHaveLength(0);
+  });
+
+  it('retries while an image is still being checked, and fails one that is gone', async () => {
+    const seen = uploadFlow();
+    const resolve = (retryable: boolean) =>
+      slackAdapter.publish(
+        ctx({
+          media: [[{ id: 'm1' }]],
+          resolver: { getFile: async () => ({ ok: false, retryable, message: 'nope' }) },
+        }),
+      );
+    expect(await resolve(true)).toMatchObject({ kind: 'error', errorKind: 'transient' });
+    expect(await resolve(false)).toMatchObject({ kind: 'error', errorKind: 'validation' });
+    expect(seen.urlRequests).toHaveLength(0);
+  });
+
+  it('validates alt text length', () => {
+    const codes = (alt: string) =>
+      slackAdapter
+        .validate(ctx({ media: [[{ id: 'm1', alt }]] }).post, [])
+        .filter((i) => i.severity === 'error')
+        .map((i) => i.code);
+    expect(codes('x'.repeat(2000))).toEqual([]);
+    expect(codes('x'.repeat(2001))).toEqual(['alt_text_too_long']);
+  });
+});

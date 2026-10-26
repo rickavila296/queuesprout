@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "message_id": 44,
+      "media_group_id": "13900000000000001",
+      "chat": {
+        "id": -1001000000002,
+        "title": "Acme Coffee News",
+        "username": "acmecoffee_news",
+        "type": "channel"
+      },
+      "date": 1793000000,
+      "photo": [
+        {
+          "file_id": "AgACAgQAAx0Fake-a",
+          "file_unique_id": "AQADFakeA",
+          "width": 4,
+          "height": 3,
+          "file_size": 120
+        }
+      ],
+      "caption": "Fresh roast"
+    },
+    {
+      "message_id": 45,
+      "media_group_id": "13900000000000001",
+      "chat": {
+        "id": -1001000000002,
+        "title": "Acme Coffee News",
+        "username": "acmecoffee_news",
+        "type": "channel"
+      },
+      "date": 1793000000,
+      "photo": [
+        {
+          "file_id": "AgACAgQAAx0Fake-b",
+          "file_unique_id": "AQADFakeB",
+          "width": 4,
+          "height": 3,
+          "file_size": 120
+        }
+      ]
+    }
+  ]
+}

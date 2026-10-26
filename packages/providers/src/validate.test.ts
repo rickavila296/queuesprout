@@ -3,6 +3,7 @@ import type { PostItemKind } from '@queuesprout/shared';
 import type { ChannelPost } from './contract';
 import { getProviderDefinition } from './client';
 import { BASE_DEFINITIONS } from './definitions';
+import { validateText } from './validate';
 
 const post = (
   provider: keyof typeof BASE_DEFINITIONS,
@@ -73,15 +74,21 @@ describe('base validate()', () => {
     expect(codes(p)).toEqual(expected);
   });
 
-  it('refuses images on adapters whose media support has not shipped', () => {
+  it('refuses images on adapters that do not declare media support', () => {
     const p = post('discord', [{ body: 'pic', kind: 'post', media: 1 }]);
-    expect(BASE_DEFINITIONS.discord.validate(p, []).map((i) => i.code)).toEqual([]);
-    expect(
-      getProviderDefinition('discord')
-        .validate(p, [])
-        .map((i) => i.code),
-    ).toEqual(['media_unsupported']);
+    const limits = BASE_DEFINITIONS.discord.limits;
+    const caps = { threads: false, firstComment: false };
+    expect(validateText(p, limits, caps).map((i) => i.code)).toEqual(['media_unsupported']);
+    expect(validateText(p, limits, { ...caps, media: true }).map((i) => i.code)).toEqual([]);
   });
+
+  it.each(['bluesky', 'mastodon', 'discord', 'telegram', 'slack'] as const)(
+    'accepts images on %s',
+    (provider) => {
+      const p = post(provider, [{ body: 'pic', kind: 'post', media: 1 }]);
+      expect(getProviderDefinition(provider).validate(p, [])).toEqual([]);
+    },
+  );
 
   it('points item issues at the item', () => {
     const issues = BASE_DEFINITIONS.bluesky.validate(post('bluesky', ['ok', 'x'.repeat(301)]), []);
