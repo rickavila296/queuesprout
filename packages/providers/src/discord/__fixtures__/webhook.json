@@ -1,0 +1,10 @@
+{
+  "application_id": null,
+  "avatar": null,
+  "channel_id": "1300000000000000002",
+  "guild_id": "1300000000000000001",
+  "id": "1300000000000000003",
+  "name": "QueueSprout",
+  "type": 1,
+  "token": "test-webhook-token-REDACTED"
+}

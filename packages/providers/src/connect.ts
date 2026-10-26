@@ -5,6 +5,7 @@
  */
 import type { ProviderId } from '@queuesprout/shared';
 import { connectWithSecret as blueskyConnect } from './bluesky/auth';
+import { connectWithSecret as discordConnect } from './discord/auth';
 import {
   exchangeCode as mastodonExchange,
   getAuthUrl as mastodonAuthUrl,
@@ -32,6 +33,7 @@ export type {
   Target,
 } from './contract';
 export { normalizeInstance as normalizeMastodonInstance } from './mastodon/http';
+export { WEBHOOK_URL_PATTERN as DISCORD_WEBHOOK_URL_PATTERN } from './discord/limits';
 export { APP_PASSWORD_PATTERN as BLUESKY_APP_PASSWORD_PATTERN } from './bluesky/auth';
 
 type SecretConnector = (ctx: SecretConnectContext) => Promise<ConnectedAccountInput>;
@@ -39,6 +41,7 @@ type SecretConnector = (ctx: SecretConnectContext) => Promise<ConnectedAccountIn
 /** Providers connected by pasting a secret (app password, bot token). */
 const SECRET_CONNECTORS: Partial<Record<ProviderId, SecretConnector>> = {
   bluesky: blueskyConnect,
+  discord: discordConnect,
 };
 
 export function secretConnector(provider: ProviderId): SecretConnector | null {

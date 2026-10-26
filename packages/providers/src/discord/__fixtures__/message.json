@@ -1,0 +1,21 @@
+{
+  "id": "1300000000000000010",
+  "type": 0,
+  "content": "Hello Discord",
+  "channel_id": "1300000000000000002",
+  "author": {
+    "bot": true,
+    "id": "1300000000000000003",
+    "username": "QueueSprout"
+  },
+  "attachments": [],
+  "embeds": [],
+  "mentions": [],
+  "mention_roles": [],
+  "pinned": false,
+  "mention_everyone": false,
+  "tts": false,
+  "timestamp": "2026-10-25T12:00:00.000000+00:00",
+  "flags": 0,
+  "webhook_id": "1300000000000000003"
+}

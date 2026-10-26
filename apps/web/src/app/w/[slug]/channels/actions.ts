@@ -25,6 +25,7 @@ import { demoAccount } from '@queuesprout/providers/client';
 import {
   BLUESKY_APP_PASSWORD_PATTERN,
   ConnectError,
+  DISCORD_WEBHOOK_URL_PATTERN,
   normalizeMastodonInstance,
   oauthConnector,
   secretConnector,
@@ -181,6 +182,71 @@ export async function connectBlueskyAction(
     if (error instanceof ForbiddenError) return fail(error.message);
     // Never pass the form data along: it holds the app password.
     return unexpected('connectBluesky', error);
+  }
+}
+
+const discordSchema = z.object({
+  workspaceSlug: workspaceSlugSchema,
+  webhookUrl: z
+    .string()
+    .trim()
+    .regex(
+      DISCORD_WEBHOOK_URL_PATTERN,
+      'Paste the full webhook URL, starting https://discord.com/api/webhooks/.',
+    ),
+  label: z.string().trim().max(100, 'Keep the name under 100 characters.').optional().default(''),
+});
+
+/**
+ * Connects one Discord channel through an incoming webhook. The webhook URL is checked with
+ * Discord, then stored encrypted: anyone holding it can post to the channel. Admins only.
+ */
+export async function connectDiscordAction(
+  _prev: FormState<{ name: string }>,
+  formData: FormData,
+): Promise<FormState<{ name: string }>> {
+  const parsed = discordSchema.safeParse({
+    workspaceSlug: formData.get('workspaceSlug'),
+    webhookUrl: formData.get('webhookUrl'),
+    label: formData.get('label') ?? '',
+  });
+  if (!parsed.success) return invalid(parsed.error);
+  const { workspaceSlug, webhookUrl, label } = parsed.data;
+
+  const { ctx } = await requireWorkspace(workspaceSlug);
+  try {
+    assertRole(ctx, 'admin');
+    const keys = keyring();
+    if (!keys) return fail('Set TOKEN_ENCRYPTION_KEY in .env, then restart the app.');
+    const workspace = await dataAccess().withWorkspace(ctx, (tx) =>
+      getWorkspace(tx, ctx.workspaceId),
+    );
+    if (!workspace || workspace.isSandbox) {
+      return fail('Sandbox workspaces use demo channels only.');
+    }
+    const connect = secretConnector('discord');
+    if (!connect) return fail('Discord is not available.');
+
+    let account: ConnectedAccountInput;
+    try {
+      account = await connect({
+        identifier: label,
+        secret: webhookUrl,
+        signal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (error instanceof ConnectError) return fail(error.message);
+      throw error;
+    }
+
+    await saveConnectedAccount(ctx, keys, 'discord', account);
+
+    revalidatePath(`/w/${workspaceSlug}`, 'layout');
+    return ok({ name: account.displayName });
+  } catch (error) {
+    if (error instanceof ForbiddenError) return fail(error.message);
+    // Never pass the form data along: the webhook URL is a secret.
+    return unexpected('connectDiscord', error);
   }
 }
 
