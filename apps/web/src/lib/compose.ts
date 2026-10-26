@@ -8,6 +8,7 @@ import {
   toWallTime,
   wallTimeToUtc,
   type ComposeMode,
+  type ItemMedia,
   type ProviderId,
 } from '@queuesprout/shared';
 
@@ -18,6 +19,7 @@ import {
 export function validateThread(
   channel: { id: string; provider: ProviderId; defaultSettings: Record<string, unknown> },
   items: readonly string[],
+  media: readonly (readonly ItemMedia[])[] = [],
 ): ValidationIssue[] {
   const post: ChannelPost = {
     id: 'draft',
@@ -29,7 +31,7 @@ export function validateThread(
       position,
       kind: position === 0 ? 'post' : 'reply',
       body,
-      mediaIds: [],
+      mediaIds: (media[position] ?? []).map((m) => m.mediaId),
     })),
   };
   return getProviderDefinition(channel.provider).validate(post, []);

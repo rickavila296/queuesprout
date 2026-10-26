@@ -38,9 +38,12 @@ function putWithProgress(
 export function UploadButton({
   workspaceSlug,
   retention = MEDIA_RETENTIONS[0],
+  onUploaded,
 }: {
   workspaceSlug: string;
   retention?: MediaRetention;
+  /** Called with each file that finished uploading, e.g. to attach it in the composer. */
+  onUploaded?: (mediaId: string) => void;
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -67,7 +70,9 @@ export function UploadButton({
       return `${file.name}: ${(error as Error).message}`;
     }
     const done = await completeUploadAction(workspaceSlug, ticket.data.mediaId);
-    return done.ok ? null : `${file.name}: ${done.error}`;
+    if (!done.ok) return `${file.name}: ${done.error}`;
+    onUploaded?.(done.data.mediaId);
+    return null;
   }
 
   async function onFiles(files: FileList | null) {
@@ -85,7 +90,7 @@ export function UploadButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-start gap-2">
       <input
         ref={input}
         type="file"

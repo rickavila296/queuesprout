@@ -18,6 +18,7 @@ import {
   ATTEMPT_OUTCOMES,
   ITEM_STATUSES,
   POST_STATUSES,
+  type ItemMedia,
   type PostItemKind,
   type PublishCheckpoint,
   type PublishErrorKind,
@@ -45,6 +46,8 @@ export const postGroups = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /** Base thread attachments by item position (ItemMedia[][]); posts keep theirs in post_item_media. */
+    baseMedia: jsonb('base_media').$type<ItemMedia[][]>().notNull().default([]),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

@@ -14,6 +14,7 @@ import {
   reserveMedia,
   type ReserveMediaInput,
 } from './queries/media';
+import { getPostGroup, savePostGroup } from './queries/posts';
 import { createWorkspace } from './queries/workspaces';
 import {
   mediaAssets,
@@ -343,5 +344,86 @@ describe('media uploads', () => {
         ),
       ),
     ).not.toBeNull();
+  });
+
+  describe('attached to posts', () => {
+    /** A confirmed upload, as the composer would attach it. */
+    async function uploaded() {
+      const i = input();
+      await reserve(asEd, i);
+      await confirm(asEd, i.mediaId, i.bytes);
+      return i.mediaId;
+    }
+    const save = (c: WorkspaceContext, extra: Partial<Parameters<typeof savePostGroup>[1]>) =>
+      da.withWorkspace(c, (tx) =>
+        savePostGroup(tx, {
+          workspaceId,
+          userId: c.userId,
+          baseItems: ['Look', 'More'],
+          channels: [{ channelId, items: ['Look', 'More'] }],
+          status: 'draft',
+          scheduledAt: null,
+          ...extra,
+        }),
+      );
+
+    it('saves and reloads attachments in order, with alt text', async () => {
+      const [a, b, c] = [await uploaded(), await uploaded(), await uploaded()];
+      const media = [
+        [
+          { mediaId: b, altText: 'second first' },
+          { mediaId: a, altText: '' },
+        ],
+        [{ mediaId: c, altText: 'reply image' }],
+      ];
+      const saved = await save(asEd, {
+        baseMedia: media,
+        channels: [{ channelId, items: ['Look', 'More'], media }],
+      });
+      if (!saved.ok) throw new Error(saved.error);
+
+      const group = await da.withWorkspace(asVic, (tx) =>
+        getPostGroup(tx, workspaceId, saved.groupId),
+      );
+      expect(group?.baseMedia).toEqual(media);
+      expect(group?.posts[0]?.media).toEqual(media);
+
+      // Editing replaces the attachments instead of adding to them.
+      const post = group?.posts[0];
+      const edited = await save(asEd, {
+        groupId: saved.groupId,
+        baseMedia: [[{ mediaId: a, altText: 'only' }]],
+        channels: [
+          {
+            channelId,
+            items: ['Look', 'More'],
+            media: [[{ mediaId: a, altText: 'only' }]],
+            version: post?.version,
+          },
+        ],
+      });
+      expect(edited.ok).toBe(true);
+      const after = await da.withWorkspace(asVic, (tx) =>
+        getPostGroup(tx, workspaceId, saved.groupId),
+      );
+      expect(after?.posts[0]?.media).toEqual([[{ mediaId: a, altText: 'only' }], []]);
+    });
+
+    it('refuses files that are deleted, still uploading or from another workspace', async () => {
+      const deleted = await uploaded();
+      await da.withWorkspace(asEd, (tx) => deleteMedia(tx, workspaceId, deleted));
+      const pending = input();
+      await reserve(asEd, pending);
+      const theirs = input({ workspaceId: asEve.workspaceId });
+      await reserve(asEve, theirs);
+      await confirm(asEve, theirs.mediaId, theirs.bytes);
+
+      for (const mediaId of [deleted, pending.mediaId, theirs.mediaId, randomUUID()]) {
+        const media = [[{ mediaId, altText: '' }]];
+        expect(
+          await save(asEd, { baseMedia: media, channels: [{ channelId, items: ['x'], media }] }),
+        ).toEqual({ ok: false, error: 'media_unavailable' });
+      }
+    });
   });
 });

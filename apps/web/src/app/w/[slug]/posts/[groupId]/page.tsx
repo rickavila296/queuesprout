@@ -16,7 +16,9 @@ import { ConfirmButton } from '@/components/confirm-button';
 import { toComposerChannels } from '@/components/composer/load';
 import { defaultScheduleWall } from '@/lib/compose';
 import { dataAccess } from '@/lib/db';
+import { loadComposerMedia } from '@/lib/media';
 import { requireWorkspace } from '@/lib/session';
+import { storage } from '@/lib/storage';
 import { DeliveryList, type DeliveryPost } from './delivery';
 
 export const metadata: Metadata = { title: 'Edit post' };
@@ -29,11 +31,17 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
   const { ctx } = await requireWorkspace(slug);
   const canEdit = hasRole(ctx.role, 'editor');
 
-  const { workspace, channels, group, history } = await dataAccess().withWorkspace(
+  const { workspace, channels, group, history, library } = await dataAccess().withWorkspace(
     ctx,
     async (tx) => {
       const group = await getPostGroup(tx, ctx.workspaceId, groupId);
+      const attachedIds = group
+        ? [group.baseMedia, ...group.posts.map((p) => p.media)].flatMap((thread) =>
+            thread.flatMap((list) => list.map((m) => m.mediaId)),
+          )
+        : [];
       return {
+        library: await loadComposerMedia(tx, ctx.workspaceId, [...new Set(attachedIds)]),
         workspace: await getWorkspace(tx, ctx.workspaceId),
         channels: await listChannels(tx, ctx.workspaceId),
         group,
@@ -52,11 +60,16 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
   const initial: ComposerInitial = {
     groupId: group.id,
     baseItems: group.baseItems,
-    picks: open.map((p) => ({
-      channelId: p.channelId,
-      items: isOverride(group.baseItems, p.items) ? p.items : null,
-      version: p.version,
-    })),
+    baseMedia: group.baseMedia,
+    picks: open.map((p) => {
+      const custom = isOverride(group.baseItems, p.items, group.baseMedia, p.media);
+      return {
+        channelId: p.channelId,
+        items: custom ? p.items : null,
+        media: custom ? p.media : [],
+        version: p.version,
+      };
+    }),
     frozen: frozen.map((p) => ({
       channelId: p.channelId,
       status: p.status,
@@ -102,6 +115,8 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
           workspaceSlug={slug}
           timezone={tz}
           channels={toComposerChannels(channels)}
+          library={library}
+          canUpload={storage() !== null}
           initial={initial}
         />
       )}

@@ -1,7 +1,8 @@
 import { and, asc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
-import type { PostStatus, ProviderId } from '@queuesprout/shared';
+import type { ItemMedia, PostStatus, ProviderId } from '@queuesprout/shared';
 import type { Tx } from '../client';
 import { channels, connectedAccounts } from '../schema/accounts';
+import { mediaAssets, postItemMedia } from '../schema/media';
 import { postGroups, postItems, posts } from '../schema/posts';
 
 /**
@@ -34,8 +35,13 @@ export interface SavePostGroupInput {
   groupId?: string;
   /** Base thread: item 0, then replies. */
   baseItems: string[];
-  /** Each picked channel with the thread it publishes and, for existing posts, its version. */
-  channels: { channelId: string; items: string[]; version?: number }[];
+  /** Base thread attachments by item position. */
+  baseMedia?: ItemMedia[][];
+  /**
+   * Each picked channel with the thread it publishes, its attachments by item position,
+   * and, for existing posts, its version.
+   */
+  channels: { channelId: string; items: string[]; media?: ItemMedia[][]; version?: number }[];
   status: 'draft' | 'scheduled';
   scheduledAt: Date | null;
 }
@@ -44,7 +50,7 @@ export type SavePostGroupResult =
   | { ok: true; groupId: string; postIds: string[] }
   | {
       ok: false;
-      error: 'not_found' | 'conflict' | 'locked' | 'channel_unavailable';
+      error: 'not_found' | 'conflict' | 'locked' | 'channel_unavailable' | 'media_unavailable';
       /** Channels the error is about. */
       channelIds?: string[];
     };
@@ -88,6 +94,30 @@ export async function savePostGroup(
   });
   if (unavailable.length > 0) {
     return { ok: false, error: 'channel_unavailable', channelIds: unavailable };
+  }
+
+  // Attachments must be live files of this workspace whose upload finished. RLS would hide
+  // another workspace's rows, and the composite foreign key would refuse them anyway.
+  const mediaIds = [
+    ...new Set(
+      [input.baseMedia ?? [], ...input.channels.map((c) => c.media ?? [])].flatMap((thread) =>
+        thread.flatMap((list) => list.map((m) => m.mediaId)),
+      ),
+    ),
+  ];
+  if (mediaIds.length > 0) {
+    const usable = await tx
+      .select({ id: mediaAssets.id })
+      .from(mediaAssets)
+      .where(
+        and(
+          eq(mediaAssets.workspaceId, input.workspaceId),
+          inArray(mediaAssets.id, mediaIds),
+          isNull(mediaAssets.deletedAt),
+          inArray(mediaAssets.status, ['processing', 'ready']),
+        ),
+      );
+    if (usable.length !== mediaIds.length) return { ok: false, error: 'media_unavailable' };
   }
 
   let groupId = input.groupId;
@@ -137,7 +167,7 @@ export async function savePostGroup(
   if (groupId) {
     await tx
       .update(postGroups)
-      .set({ baseBody: first, baseReplies: replies })
+      .set({ baseBody: first, baseReplies: replies, baseMedia: input.baseMedia ?? [] })
       .where(eq(postGroups.id, groupId));
   } else {
     const rows = await tx
@@ -147,6 +177,7 @@ export async function savePostGroup(
         createdBy: input.userId,
         baseBody: first,
         baseReplies: replies,
+        baseMedia: input.baseMedia ?? [],
       })
       .returning({ id: postGroups.id });
     groupId = rows[0]?.id;
@@ -200,15 +231,28 @@ export async function savePostGroup(
       if (!id) throw new Error('posts insert returned no id');
       postId = id;
     }
-    await tx.insert(postItems).values(
-      c.items.map((body, position) => ({
+    const inserted = await tx
+      .insert(postItems)
+      .values(
+        c.items.map((body, position) => ({
+          workspaceId: input.workspaceId,
+          postId,
+          position,
+          kind: position === 0 ? ('post' as const) : ('reply' as const),
+          body,
+        })),
+      )
+      .returning({ id: postItems.id, position: postItems.position });
+    const attachments = inserted.flatMap((item) =>
+      (c.media?.[item.position] ?? []).map((m, position) => ({
         workspaceId: input.workspaceId,
-        postId,
+        postItemId: item.id,
         position,
-        kind: position === 0 ? ('post' as const) : ('reply' as const),
-        body,
+        mediaId: m.mediaId,
+        altText: m.altText,
       })),
     );
+    if (attachments.length > 0) await tx.insert(postItemMedia).values(attachments);
     postIds.push(postId);
   }
   return { ok: true, groupId, postIds };
@@ -224,6 +268,8 @@ export interface GroupPost {
   errorMessage: string | null;
   version: number;
   items: string[];
+  /** Attachments by item position. */
+  media: ItemMedia[][];
   /** Items already published; such a post is no longer composer-editable. */
   sentItems: number;
 }
@@ -231,6 +277,7 @@ export interface GroupPost {
 export interface PostGroupDetail {
   id: string;
   baseItems: string[];
+  baseMedia: ItemMedia[][];
   createdAt: Date;
   posts: GroupPost[];
 }
@@ -268,6 +315,7 @@ export async function getPostGroup(
       ? []
       : await tx
           .select({
+            id: postItems.id,
             postId: postItems.postId,
             position: postItems.position,
             body: postItems.body,
@@ -282,15 +330,39 @@ export async function getPostGroup(
           )
           .orderBy(asc(postItems.postId), asc(postItems.position));
 
+  const attachments =
+    items.length === 0
+      ? []
+      : await tx
+          .select({
+            postItemId: postItemMedia.postItemId,
+            mediaId: postItemMedia.mediaId,
+            altText: postItemMedia.altText,
+          })
+          .from(postItemMedia)
+          .where(
+            inArray(
+              postItemMedia.postItemId,
+              items.map((i) => i.id),
+            ),
+          )
+          .orderBy(asc(postItemMedia.postItemId), asc(postItemMedia.position));
+
   return {
     id: group.id,
     baseItems: [group.baseBody, ...group.baseReplies],
+    baseMedia: group.baseMedia,
     createdAt: group.createdAt,
     posts: rows.map((r) => {
       const own = items.filter((i) => i.postId === r.id);
       return {
         ...r,
         items: own.map((i) => i.body),
+        media: own.map((i) =>
+          attachments
+            .filter((a) => a.postItemId === i.id)
+            .map((a) => ({ mediaId: a.mediaId, altText: a.altText })),
+        ),
         sentItems: own.filter((i) => i.status === 'published').length,
       };
     }),

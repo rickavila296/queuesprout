@@ -21,6 +21,8 @@ import { runStep, type PipelineDeps } from './step';
 const {
   connectedAccounts,
   channels,
+  mediaAssets,
+  postItemMedia,
   postGroups,
   postItems,
   posts,
@@ -38,7 +40,7 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
   let clock: Date;
   let queue: Array<{ postId: string; runAt: Date }>;
   /** Every adapter.publish() call, to prove nothing is posted twice. */
-  let calls: Array<{ postId: string; position: number }>;
+  let calls: Array<{ postId: string; position: number; mediaIds?: string[] }>;
   /** Steps to return instead of the mock's result, keyed by item body. */
   let overrides: Map<string, PublishStep[]>;
   let workspaceId: string;
@@ -57,7 +59,11 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
     const adapter: ProviderAdapter = {
       ...inner,
       async publish(ctx) {
-        calls.push({ postId: ctx.post.id, position: ctx.item.position });
+        calls.push({
+          postId: ctx.post.id,
+          position: ctx.item.position,
+          ...(ctx.item.mediaIds.length > 0 && { mediaIds: ctx.item.mediaIds }),
+        });
         const scripted = overrides.get(ctx.item.body)?.shift();
         return scripted ?? inner.publish(ctx);
       },
@@ -223,6 +229,51 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
       [3, 'success'],
     ]);
     expect(calls).toHaveLength(3);
+  });
+
+  /** Attaches ready images to a post's item, as the composer would. */
+  async function attach(postId: string, position: number, count: number) {
+    const [item] = (await getItems(postId)).filter((i) => i.position === position);
+    if (!item) throw new Error('no item');
+    const ids: string[] = [];
+    for (let n = 0; n < count; n++) {
+      const id = randomUUID();
+      await t.owner.insert(mediaAssets).values({
+        id,
+        workspaceId,
+        filename: `${n}.png`,
+        mime: 'image/png',
+        bytes: 100,
+        storageKey: `ws/${workspaceId}/${id}/original.png`,
+        status: 'ready',
+      });
+      await t.owner
+        .insert(postItemMedia)
+        .values({ workspaceId, postItemId: item.id, position: n, mediaId: id });
+      ids.push(id);
+    }
+    return ids;
+  }
+
+  it('hands attached images to the adapter in order', async () => {
+    // LinkedIn has no real adapter yet, so its sandbox definition accepts images.
+    const { channel } = await connect('linkedin');
+    const id = await schedule(channel.id, ['with pictures']);
+    const mediaIds = await attach(id, 0, 2);
+    await tick();
+    expect((await getPost(id)).status).toBe('published');
+    expect(calls).toEqual([{ postId: id, position: 0, mediaIds }]);
+  });
+
+  it('fails images on a channel whose adapter cannot publish them, without calling it', async () => {
+    const { channel } = await connect('discord');
+    const id = await schedule(channel.id, ['picture']);
+    await attach(id, 0, 1);
+    await tick();
+    const post = await getPost(id);
+    expect([post.status, post.errorKind]).toEqual(['failed', 'validation']);
+    expect(post.errorMessage).toMatch(/Images cannot be published to this channel yet/);
+    expect(calls).toEqual([]);
   });
 
   it('leaves drafts and future posts alone', async () => {

@@ -87,16 +87,18 @@ const META: Record<
 function baseDefinition(id: ProviderId): ProviderDefinition {
   const meta = META[id];
   const limits = PLATFORM_LIMITS[id];
+  // Base definitions only ever publish through the mock adapter, so images are fine here.
+  const capabilities = { ...meta.capabilities, media: true };
   return {
     id,
     authType: meta.authType,
     limits,
     settingsSchema: meta.settingsSchema as z.ZodType<Record<string, unknown>>,
-    capabilities: meta.capabilities,
+    capabilities,
     validate(post) {
       return [
         ...validateSettings(meta.settingsSchema, post.settings),
-        ...validateText(post, limits, meta.capabilities),
+        ...validateText(post, limits, capabilities),
       ];
     },
   };

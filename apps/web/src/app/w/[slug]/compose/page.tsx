@@ -6,7 +6,9 @@ import { Composer } from '@/components/composer/composer';
 import { toComposerChannels } from '@/components/composer/load';
 import { defaultScheduleWall } from '@/lib/compose';
 import { dataAccess } from '@/lib/db';
+import { loadComposerMedia } from '@/lib/media';
 import { requireWorkspace } from '@/lib/session';
+import { storage } from '@/lib/storage';
 
 export const metadata: Metadata = { title: 'New post' };
 
@@ -15,9 +17,10 @@ export default async function ComposePage({ params }: PageProps<'/w/[slug]/compo
   const { ctx } = await requireWorkspace(slug);
   if (!hasRole(ctx.role, 'editor')) notFound();
 
-  const { workspace, channels } = await dataAccess().withWorkspace(ctx, async (tx) => ({
+  const { workspace, channels, library } = await dataAccess().withWorkspace(ctx, async (tx) => ({
     workspace: await getWorkspace(tx, ctx.workspaceId),
     channels: await listChannels(tx, ctx.workspaceId),
+    library: await loadComposerMedia(tx, ctx.workspaceId),
   }));
   if (!workspace) notFound();
   const composerChannels = toComposerChannels(channels);
@@ -30,10 +33,16 @@ export default async function ComposePage({ params }: PageProps<'/w/[slug]/compo
         workspaceSlug={slug}
         timezone={workspace.timezone}
         channels={composerChannels}
+        library={library}
+        canUpload={storage() !== null}
         initial={{
           baseItems: [''],
+          baseMedia: [],
           // One usable channel is picked for you; with several, you choose.
-          picks: usable.length === 1 && usable[0] ? [{ channelId: usable[0].id, items: null }] : [],
+          picks:
+            usable.length === 1 && usable[0]
+              ? [{ channelId: usable[0].id, items: null, media: [] }]
+              : [],
           frozen: [],
           mode: 'schedule',
           scheduledAt: defaultScheduleWall(new Date(), workspace.timezone),

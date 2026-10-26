@@ -24,6 +24,8 @@ export interface ProviderCapabilities {
   firstComment: boolean;
   /** Needs several steps with platform-side processing (container, poll, publish). */
   asyncProcessing: boolean;
+  /** Publishes attached images. Absent until the adapter's media support ships. */
+  media?: boolean;
 }
 
 export interface PostItem {
