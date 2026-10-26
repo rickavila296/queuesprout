@@ -9,7 +9,12 @@ import { completeUploadAction, createUploadAction } from './actions';
 
 interface Progress {
   name: string;
+  /** 1-based position of this file in the batch. */
+  index: number;
+  total: number;
   percent: number;
+  /** The bytes are in; the server is confirming the upload. */
+  finishing: boolean;
 }
 
 /** PUTs straight to the bucket so the bytes never pass through a server function. */
@@ -50,7 +55,7 @@ export function UploadButton({
   const [progress, setProgress] = useState<Progress | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
 
-  async function uploadOne(file: File): Promise<string | null> {
+  async function uploadOne(file: File, index: number, total: number): Promise<string | null> {
     const parsed = createUploadSchema.safeParse({
       filename: file.name,
       mime: file.type,
@@ -61,14 +66,16 @@ export function UploadButton({
 
     const ticket = await createUploadAction(workspaceSlug, parsed.data);
     if (!ticket.ok) return `${file.name}: ${ticket.error}`;
-    setProgress({ name: file.name, percent: 0 });
+    const at = { name: file.name, index, total };
+    setProgress({ ...at, percent: 0, finishing: false });
     try {
       await putWithProgress(ticket.data.uploadUrl, file, ticket.data.contentType, (percent) =>
-        setProgress({ name: file.name, percent }),
+        setProgress({ ...at, percent, finishing: false }),
       );
     } catch (error) {
       return `${file.name}: ${(error as Error).message}`;
     }
+    setProgress({ ...at, percent: 100, finishing: true });
     const done = await completeUploadAction(workspaceSlug, ticket.data.mediaId);
     if (!done.ok) return `${file.name}: ${done.error}`;
     onUploaded?.(done.data.mediaId);
@@ -79,8 +86,9 @@ export function UploadButton({
     if (!files || files.length === 0) return;
     setErrors([]);
     const failed: string[] = [];
-    for (const file of Array.from(files)) {
-      const error = await uploadOne(file);
+    const list = Array.from(files);
+    for (const [i, file] of list.entries()) {
+      const error = await uploadOne(file, i + 1, list.length);
       if (error) failed.push(error);
     }
     setProgress(null);
@@ -102,12 +110,32 @@ export function UploadButton({
       />
       <Button type="button" onClick={() => input.current?.click()} disabled={progress !== null}>
         <Upload className="size-4" aria-hidden="true" />
-        {progress ? `Uploading ${progress.percent}%` : 'Upload images'}
+        {progress
+          ? progress.finishing
+            ? 'Finishing…'
+            : `Uploading ${progress.percent}%`
+          : 'Upload images'}
       </Button>
       {progress && (
-        <p role="status" className="max-w-64 truncate text-sm text-muted">
-          {progress.name}
-        </p>
+        <div className="flex w-64 flex-col gap-1">
+          <div
+            role="progressbar"
+            aria-label={`Uploading ${progress.name}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.percent}
+            className="h-1.5 overflow-hidden rounded-full bg-surface-hover"
+          >
+            <div
+              className="h-full rounded-full bg-sprout-600 transition-[width] duration-150"
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
+          <p role="status" className="truncate text-sm text-muted">
+            {progress.total > 1 && `${progress.index} of ${progress.total}: `}
+            {progress.name}
+          </p>
+        </div>
       )}
       {errors.map((e) => (
         <FieldError key={e}>{e}</FieldError>

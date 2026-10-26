@@ -4,7 +4,7 @@ import {
   markMediaPurged,
   markMediaRemoved,
 } from '@queuesprout/db/media-processing';
-import { deleteObject, type Storage } from '@queuesprout/storage';
+import { deleteObject, variantKey, type Storage } from '@queuesprout/storage';
 
 export interface RetentionDeps {
   db: Database;
@@ -36,7 +36,10 @@ export async function runMediaRetention(deps: RetentionDeps): Promise<RetentionS
   let errors = 0;
   for (const target of await listMediaToRemove(deps.db, BATCH)) {
     try {
-      for (const key of target.keys) await deleteObject(deps.storage, key);
+      // The thumbnail key is fixed, and a check that was running when the file was deleted
+      // can write it after the row lost its thumbnail_key, so remove it either way.
+      const thumb = variantKey(target.workspaceId, target.id, 'thumb', 'webp');
+      for (const key of new Set([...target.keys, thumb])) await deleteObject(deps.storage, key);
       await markMediaRemoved(deps.db, target.id, deps.now());
       removed++;
     } catch (error) {

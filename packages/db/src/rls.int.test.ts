@@ -10,8 +10,10 @@ import {
   listMembers,
   listMyWorkspaces,
   listOpenInvites,
+  removeMember,
+  updateMemberRole,
 } from './queries/workspaces';
-import { profiles, user, workspaceInvites, workspaces } from './schema';
+import { profiles, user, workspaceInvites, workspaceMembers, workspaces } from './schema';
 import { createTestDatabase, type TestDatabase } from './test-utils';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -163,6 +165,89 @@ describe('tenancy and RLS', () => {
         }),
       ),
     ).rejects.toThrow();
+  });
+
+  it("changes the role of a member who accepts a second invite, but never the owner's", async () => {
+    const ctx = await da.resolveWorkspace(alice.id, 'acme');
+    if (!ctx) throw new Error('alice should own acme');
+    const invite = (email: string, token: string) =>
+      da.withWorkspace(ctx, (tx) =>
+        createInvite(tx, {
+          workspaceId: ctx.workspaceId,
+          invitedBy: alice.id,
+          email,
+          role: 'admin',
+          tokenHash: hash(token),
+          expiresAt: new Date(Date.now() + 86_400_000),
+        }),
+      );
+
+    await invite(bob.email, 'bob-admin');
+    expect(await da.withUser(bob.id, (tx) => acceptInvite(tx, hash('bob-admin')))).toEqual({
+      ok: true,
+      workspaceSlug: 'acme',
+    });
+    expect((await da.resolveWorkspace(bob.id, 'acme'))?.role).toBe('admin');
+
+    // Bob, now admin, invites Alice as admin: accepting must not demote the owner.
+    const bobCtx = await da.resolveWorkspace(bob.id, 'acme');
+    if (!bobCtx) throw new Error('bob should be a member');
+    await da.withWorkspace(bobCtx, (tx) =>
+      createInvite(tx, {
+        workspaceId: bobCtx.workspaceId,
+        invitedBy: bob.id,
+        email: alice.email,
+        role: 'admin',
+        tokenHash: hash('alice-admin'),
+        expiresAt: new Date(Date.now() + 86_400_000),
+      }),
+    );
+    await da.withUser(alice.id, (tx) => acceptInvite(tx, hash('alice-admin')));
+    expect((await da.resolveWorkspace(alice.id, 'acme'))?.role).toBe('owner');
+
+    await da.withWorkspace(ctx, (tx) => updateMemberRole(tx, ctx.workspaceId, bob.id, 'viewer'));
+  });
+
+  it('lets admins change roles and remove members, but never the owner', async () => {
+    const ctx = await da.resolveWorkspace(alice.id, 'acme');
+    if (!ctx) throw new Error('alice should own acme');
+    await t.owner
+      .insert(workspaceMembers)
+      .values({ workspaceId: ctx.workspaceId, userId: eve.id, role: 'admin' });
+    const eveCtx = await da.resolveWorkspace(eve.id, 'acme');
+    const bobCtx = await da.resolveWorkspace(bob.id, 'acme');
+    if (!eveCtx || !bobCtx) throw new Error('eve and bob should be members');
+
+    // A viewer can do neither.
+    expect(
+      await da.withWorkspace(bobCtx, (tx) =>
+        updateMemberRole(tx, ctx.workspaceId, eve.id, 'viewer'),
+      ),
+    ).toBe(false);
+    expect(await da.withWorkspace(bobCtx, (tx) => removeMember(tx, ctx.workspaceId, eve.id))).toBe(
+      false,
+    );
+
+    // An admin can, except on the owner.
+    expect(
+      await da.withWorkspace(eveCtx, (tx) =>
+        updateMemberRole(tx, ctx.workspaceId, bob.id, 'editor'),
+      ),
+    ).toBe(true);
+    expect((await da.resolveWorkspace(bob.id, 'acme'))?.role).toBe('editor');
+    expect(
+      await da.withWorkspace(eveCtx, (tx) =>
+        updateMemberRole(tx, ctx.workspaceId, alice.id, 'viewer'),
+      ),
+    ).toBe(false);
+    expect(
+      await da.withWorkspace(eveCtx, (tx) => removeMember(tx, ctx.workspaceId, alice.id)),
+    ).toBe(false);
+    expect(await da.withWorkspace(eveCtx, (tx) => removeMember(tx, ctx.workspaceId, bob.id))).toBe(
+      true,
+    );
+    expect(await da.resolveWorkspace(bob.id, 'acme')).toBeNull();
+    expect((await da.resolveWorkspace(alice.id, 'acme'))?.role).toBe('owner');
   });
 
   it('keeps app.user_id local to its transaction', async () => {

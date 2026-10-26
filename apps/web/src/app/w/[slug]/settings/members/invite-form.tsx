@@ -4,12 +4,7 @@ import { useActionState, useEffect, useRef } from 'react';
 import { INVITABLE_ROLES } from '@queuesprout/shared';
 import { Button, FieldError, Input, Label, Select } from '@queuesprout/ui';
 import { inviteMemberAction } from './actions';
-
-const ROLE_LABEL: Record<(typeof INVITABLE_ROLES)[number], string> = {
-  admin: 'Admin',
-  editor: 'Editor',
-  viewer: 'Viewer',
-};
+import { ROLE_LABEL } from './roles';
 
 export function InviteForm({ workspaceSlug }: { workspaceSlug: string }) {
   const [state, action, pending] = useActionState(inviteMemberAction, null);
@@ -51,6 +46,7 @@ export function InviteForm({ workspaceSlug }: { workspaceSlug: string }) {
       </div>
       <p className="text-sm text-muted">
         Admins manage members and channels. Editors create and schedule posts. Viewers read only.
+        Inviting someone who is already a member changes their role.
       </p>
       <FieldError>{errors?.email ?? (state && !state.ok ? state.error : undefined)}</FieldError>
       {state?.ok && (
