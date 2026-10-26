@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { MediaRetention, MediaStatus } from '@queuesprout/shared';
 import type { Tx } from '../client';
 import { findPgError, PG_INSUFFICIENT_PRIVILEGE } from '../errors';
@@ -107,6 +107,25 @@ export async function getMedia(
     )
     .limit(1);
   return row ?? null;
+}
+
+/** Several files by id (attachments of a post being edited). Deleted files are left out. */
+export function getMediaByIds(
+  tx: Tx,
+  workspaceId: string,
+  mediaIds: string[],
+): Promise<MediaSummary[]> {
+  if (mediaIds.length === 0) return Promise.resolve([]);
+  return tx
+    .select(summaryColumns)
+    .from(mediaAssets)
+    .where(
+      and(
+        eq(mediaAssets.workspaceId, workspaceId),
+        inArray(mediaAssets.id, mediaIds),
+        isNull(mediaAssets.deletedAt),
+      ),
+    );
 }
 
 export const MEDIA_LIBRARY_PAGE_SIZE = 60;

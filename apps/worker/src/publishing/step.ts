@@ -89,6 +89,14 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
     });
   }
   const { adapter, mock } = resolved;
+  // The composer checks this too; this catches posts saved before an adapter lost support.
+  if (!adapter.capabilities.media && work.items.some((i) => i.mediaIds.length > 0)) {
+    return finishWith(deps, work, {
+      kind: 'error',
+      errorKind: 'validation',
+      message: 'Images cannot be published to this channel yet. Remove them and retry.',
+    });
+  }
   const accountRef = {
     externalId: work.account.externalAccountId,
     serviceUrl: work.account.serviceUrl,
@@ -126,7 +134,7 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
     });
   }
 
-  const toItem = (i: StepWork['item']) => ({ ...i, mediaIds: [] });
+  const toItem = (i: StepWork['item']) => ({ ...i });
   const ctx: PublishContext = {
     post: {
       id: work.postId,

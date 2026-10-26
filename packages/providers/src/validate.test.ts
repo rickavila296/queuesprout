@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PostItemKind } from '@queuesprout/shared';
 import type { ChannelPost } from './contract';
+import { getProviderDefinition } from './client';
 import { BASE_DEFINITIONS } from './definitions';
 
 const post = (
@@ -70,6 +71,16 @@ describe('base validate()', () => {
     ],
   ])('%s', (_name, p, expected) => {
     expect(codes(p)).toEqual(expected);
+  });
+
+  it('refuses images on adapters whose media support has not shipped', () => {
+    const p = post('discord', [{ body: 'pic', kind: 'post', media: 1 }]);
+    expect(BASE_DEFINITIONS.discord.validate(p, []).map((i) => i.code)).toEqual([]);
+    expect(
+      getProviderDefinition('discord')
+        .validate(p, [])
+        .map((i) => i.code),
+    ).toEqual(['media_unsupported']);
   });
 
   it('points item issues at the item', () => {

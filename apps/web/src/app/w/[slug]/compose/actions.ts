@@ -11,7 +11,13 @@ import {
   savePostGroup,
   type SavePostGroupResult,
 } from '@queuesprout/db';
-import { composeSchema, effectiveItems, fail, workspaceSlugSchema } from '@queuesprout/shared';
+import {
+  composeSchema,
+  effectiveItems,
+  effectiveMedia,
+  fail,
+  workspaceSlugSchema,
+} from '@queuesprout/shared';
 import { invalid, unexpected, type FormState } from '@/lib/actions';
 import { resolveSchedule, validateThread } from '@/lib/compose';
 import { dataAccess } from '@/lib/db';
@@ -25,6 +31,7 @@ const SAVE_ERRORS: Record<Exclude<SavePostGroupResult, { ok: true }>['error'], s
   conflict: 'Someone changed this post while you were editing. Reload to see their changes.',
   locked: 'A channel started publishing, so its post can no longer change. Reload to see it.',
   channel_unavailable: 'A channel is disconnected or needs reconnecting. Remove it to continue.',
+  media_unavailable: 'An attached image was deleted or has not finished uploading. Remove it.',
 };
 
 type Outcome = { kind: 'saved'; notice: string } | { kind: 'error'; state: ComposeState };
@@ -69,6 +76,7 @@ export async function saveComposeAction(
         channelId: c.channelId,
         version: c.version,
         items: effectiveItems(input.baseItems, c),
+        media: effectiveMedia(input.baseItems, input.baseMedia, c),
       }));
 
       // Drafts may be unfinished; anything headed for publishing must pass every check.
@@ -77,7 +85,9 @@ export async function saveComposeAction(
         for (const pick of picks) {
           const channel = channels.get(pick.channelId);
           if (!channel) continue; // savePostGroup reports it
-          const first = validateThread(channel, pick.items).find((i) => i.severity === 'error');
+          const first = validateThread(channel, pick.items, pick.media).find(
+            (i) => i.severity === 'error',
+          );
           if (first) fieldErrors[`channel:${pick.channelId}`] = first.message;
         }
         if (Object.keys(fieldErrors).length > 0) {
@@ -93,6 +103,7 @@ export async function saveComposeAction(
         userId: ctx.userId,
         groupId: input.groupId,
         baseItems: input.baseItems,
+        baseMedia: input.baseMedia,
         channels: picks,
         status: schedule.status,
         scheduledAt: schedule.scheduledAt,

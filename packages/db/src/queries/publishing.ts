@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type {
   AttemptOutcome,
   ProviderId,
@@ -7,6 +7,7 @@ import type {
 } from '@queuesprout/shared';
 import type { Database, Tx } from '../client';
 import { channels, connectedAccounts } from '../schema/accounts';
+import { postItemMedia } from '../schema/media';
 import { postItems, posts, publishAttempts } from '../schema/posts';
 import { workspaces } from '../schema/workspaces';
 
@@ -76,6 +77,8 @@ export interface StepWork {
     position: number;
     kind: 'post' | 'reply' | 'first_comment';
     body: string;
+    /** Attached media, in order. */
+    mediaIds: string[];
     createdAt: Date;
   }>;
   item: {
@@ -83,6 +86,7 @@ export interface StepWork {
     position: number;
     kind: 'post' | 'reply' | 'first_comment';
     body: string;
+    mediaIds: string[];
     createdAt: Date;
   };
   parent: ItemRefRow | null;
@@ -224,6 +228,19 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
       .returning({ id: publishAttempts.id });
     if (!attempt) throw new Error('could not open publish attempt');
 
+    const attachments = await tx
+      .select({ postItemId: postItemMedia.postItemId, mediaId: postItemMedia.mediaId })
+      .from(postItemMedia)
+      .where(
+        inArray(
+          postItemMedia.postItemId,
+          items.map((i) => i.id),
+        ),
+      )
+      .orderBy(asc(postItemMedia.position));
+    const mediaOf = (itemId: string) =>
+      attachments.filter((a) => a.postItemId === itemId).map((a) => a.mediaId);
+
     const previous = items.find((i) => i.position === next.position - 1);
     const first = items[0];
     const checkpoint =
@@ -242,6 +259,7 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
           position: i.position,
           kind: i.kind,
           body: i.body,
+          mediaIds: mediaOf(i.id),
           createdAt: i.createdAt,
         })),
         item: {
@@ -249,6 +267,7 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
           position: next.position,
           kind: next.kind,
           body: next.body,
+          mediaIds: mediaOf(next.id),
           createdAt: next.createdAt,
         },
         parent: previous ? toRef(previous) : null,

@@ -1,0 +1,1 @@
+ALTER TABLE "post_groups" ADD COLUMN "base_media" jsonb DEFAULT '[]'::jsonb NOT NULL;

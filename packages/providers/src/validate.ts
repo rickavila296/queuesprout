@@ -9,7 +9,7 @@ import type { ChannelPost, ValidationIssue } from './contract';
 export function validateText(
   post: ChannelPost<unknown>,
   limits: PlatformLimits,
-  capabilities: { threads: boolean; firstComment: boolean },
+  capabilities: { threads: boolean; firstComment: boolean; media?: boolean },
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const replies = post.items.filter((i) => i.kind === 'reply');
@@ -59,7 +59,15 @@ export function validateText(
         field: 'body',
       });
     }
-    if (item.mediaIds.length > limits.maxMedia) {
+    if (item.mediaIds.length > 0 && !capabilities.media) {
+      issues.push({
+        code: 'media_unsupported',
+        message: 'Images cannot be published to this channel yet.',
+        severity: 'error',
+        itemPosition: item.position,
+        field: 'media',
+      });
+    } else if (item.mediaIds.length > limits.maxMedia) {
       issues.push({
         code: 'too_many_media',
         message:

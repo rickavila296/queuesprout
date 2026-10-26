@@ -7,12 +7,15 @@ import {
   MAX_THREAD_ITEMS,
   type ComposeInput,
   type ComposeMode,
+  type ItemMedia,
   type ProviderId,
 } from '@queuesprout/shared';
 import { Badge, Button, Card, cn, FieldError, Input, Label, Textarea } from '@queuesprout/ui';
 import { saveComposeAction } from '@/app/w/[slug]/compose/actions';
 import { charCount, validateThread } from '@/lib/compose';
+import type { ComposerMedia } from '@/lib/media';
 import { providerLabel } from '@/lib/providers';
+import { MediaTray } from './media-tray';
 
 export interface ComposerChannel {
   id: string;
@@ -27,8 +30,13 @@ export interface ComposerChannel {
 export interface ComposerInitial {
   groupId?: string;
   baseItems: string[];
-  /** Editable posts already in the group. items is null when the channel follows the base. */
-  picks: { channelId: string; items: string[] | null; version?: number }[];
+  /** Base attachments by item position. */
+  baseMedia: ItemMedia[][];
+  /**
+   * Editable posts already in the group. items is null when the channel follows the base;
+   * media is the override's attachments by item position.
+   */
+  picks: { channelId: string; items: string[] | null; media: ItemMedia[][]; version?: number }[];
   /** Posts in the group that can no longer change (publishing, published, failed). */
   frozen: { channelId: string; status: string; externalUrl: string | null }[];
   mode: ComposeMode;
@@ -40,7 +48,19 @@ interface Props {
   timezone: string;
   channels: ComposerChannel[];
   initial: ComposerInitial;
+  /** Images that can be attached, newest first. */
+  library: ComposerMedia[];
+  /** False when media storage is not configured. */
+  canUpload: boolean;
 }
+
+type MediaUpdate = (prev: ItemMedia[]) => ItemMedia[];
+
+const setAt = <T,>(list: T[][], i: number, update: (prev: T[]) => T[]): T[][] => {
+  const next = Array.from({ length: Math.max(list.length, i + 1) }, (_, j) => list[j] ?? []);
+  next[i] = update(next[i] ?? []);
+  return next;
+};
 
 type Tab = 'base' | string;
 
@@ -50,9 +70,22 @@ const MODE_LABEL: Record<ComposeMode, string> = {
   now: 'Publish now',
 };
 
-export function Composer({ workspaceSlug, timezone, channels, initial }: Props) {
+export function Composer({
+  workspaceSlug,
+  timezone,
+  channels,
+  initial,
+  library,
+  canUpload,
+}: Props) {
   const [state, action, pending] = useActionState(saveComposeAction, null);
   const [base, setBase] = useState<string[]>(initial.baseItems);
+  const [baseMedia, setBaseMedia] = useState<ItemMedia[][]>(initial.baseMedia);
+  const [overrideMedia, setOverrideMedia] = useState<Record<string, ItemMedia[][]>>(() =>
+    Object.fromEntries(
+      initial.picks.flatMap((p) => (p.items ? [[p.channelId, p.media] as const] : [])),
+    ),
+  );
   const [picked, setPicked] = useState<string[]>(initial.picks.map((p) => p.channelId));
   const [overrides, setOverrides] = useState<Record<string, string[]>>(() =>
     Object.fromEntries(
@@ -71,8 +104,12 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
   const frozenIds = new Set(initial.frozen.map((f) => f.channelId));
   const pickedChannels = picked.flatMap((id) => byId.get(id) ?? []);
   const itemsFor = (id: string) => overrides[id] ?? base;
+  const mediaFor = (id: Tab) =>
+    id === 'base' || !overrides[id] ? baseMedia : (overrideMedia[id] ?? []);
 
-  const issues = new Map(pickedChannels.map((c) => [c.id, validateThread(c, itemsFor(c.id))]));
+  const issues = new Map(
+    pickedChannels.map((c) => [c.id, validateThread(c, itemsFor(c.id), mediaFor(c.id))]),
+  );
   const blocking = [...issues.values()].some((list) => list.some((i) => i.severity === 'error'));
   const errors = state && !state.ok ? state.fieldErrors : undefined;
   const activeTab = tab !== 'base' && !picked.includes(tab) ? 'base' : tab;
@@ -81,9 +118,13 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
     workspaceSlug,
     ...(initial.groupId && { groupId: initial.groupId }),
     baseItems: base,
+    baseMedia: baseMedia.slice(0, base.length),
     channels: picked.map((channelId) => ({
       channelId,
       items: overrides[channelId] ?? null,
+      media: overrides[channelId]
+        ? (overrideMedia[channelId] ?? []).slice(0, overrides[channelId].length)
+        : [],
       ...(versions.get(channelId) !== undefined && { version: versions.get(channelId) }),
     })),
     mode,
@@ -96,6 +137,21 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
   const editThread = (target: Tab, next: string[]) => {
     if (target === 'base') setBase(next);
     else setOverrides((o) => ({ ...o, [target]: next }));
+  };
+
+  const editMedia = (target: Tab, i: number, update: MediaUpdate) => {
+    if (target === 'base') setBaseMedia((m) => setAt(m, i, update));
+    else setOverrideMedia((o) => ({ ...o, [target]: setAt(o[target] ?? [], i, update) }));
+  };
+
+  const removeItem = (target: Tab, i: number, items: string[]) => {
+    editThread(
+      target,
+      items.filter((_, j) => j !== i),
+    );
+    const drop = (list: ItemMedia[][]) => list.filter((_, j) => j !== i);
+    if (target === 'base') setBaseMedia(drop);
+    else setOverrideMedia((o) => ({ ...o, [target]: drop(o[target] ?? []) }));
   };
 
   const thread = activeTab === 'base' ? base : overrides[activeTab];
@@ -226,11 +282,22 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
               <p className="text-sm text-muted">
                 {activeChannel.name} posts the same text as all channels.
               </p>
-              <ThreadPreview items={base} provider={activeChannel.provider} />
+              <ThreadPreview
+                items={base}
+                media={baseMedia}
+                library={library}
+                provider={activeChannel.provider}
+              />
               <div>
                 <Button
                   variant="secondary"
-                  onClick={() => setOverrides((o) => ({ ...o, [activeChannel.id]: [...base] }))}
+                  onClick={() => {
+                    setOverrides((o) => ({ ...o, [activeChannel.id]: [...base] }));
+                    setOverrideMedia((o) => ({
+                      ...o,
+                      [activeChannel.id]: baseMedia.map((list) => list.map((m) => ({ ...m }))),
+                    }));
+                  }}
                 >
                   Customize for {activeChannel.name}
                 </Button>
@@ -240,6 +307,12 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
             <ThreadEditor
               items={thread ?? base}
               onChange={(next) => editThread(activeTab, next)}
+              onRemove={(i) => removeItem(activeTab, i, thread ?? base)}
+              media={mediaFor(activeTab)}
+              onMediaChange={(i, update) => editMedia(activeTab, i, update)}
+              workspaceSlug={workspaceSlug}
+              library={library}
+              canUpload={canUpload}
               providers={
                 activeChannel
                   ? [activeChannel.provider]
@@ -257,12 +330,16 @@ export function Composer({ workspaceSlug, timezone, channels, initial }: Props) 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() =>
+                onClick={() => {
                   setOverrides((o) => {
                     const { [activeChannel.id]: _removed, ...rest } = o;
                     return rest;
-                  })
-                }
+                  });
+                  setOverrideMedia((o) => {
+                    const { [activeChannel.id]: _removed, ...rest } = o;
+                    return rest;
+                  });
+                }}
               >
                 <RotateCcw className="size-3.5" aria-hidden="true" />
                 Use the text for all channels
@@ -382,11 +459,23 @@ function Counter({ provider, body }: { provider: ProviderId; body: string }) {
 function ThreadEditor({
   items,
   onChange,
+  onRemove,
+  media,
+  onMediaChange,
+  workspaceSlug,
+  library,
+  canUpload,
   providers,
   idPrefix,
 }: {
   items: string[];
   onChange: (next: string[]) => void;
+  onRemove: (i: number) => void;
+  media: ItemMedia[][];
+  onMediaChange: (i: number, update: MediaUpdate) => void;
+  workspaceSlug: string;
+  library: ComposerMedia[];
+  canUpload: boolean;
   providers: ProviderId[];
   idPrefix: string;
 }) {
@@ -403,7 +492,7 @@ function ThreadEditor({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onChange(items.filter((_, j) => j !== i))}
+                onClick={() => onRemove(i)}
                 aria-label={`Remove thread post ${i + 1}`}
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
@@ -416,6 +505,14 @@ function ThreadEditor({
             onChange={(e) => set(i, e.target.value)}
             rows={i === 0 ? 5 : 3}
             placeholder={i === 0 ? 'What do you want to share?' : 'Continue the thread'}
+          />
+          <MediaTray
+            workspaceSlug={workspaceSlug}
+            idPrefix={`${idPrefix}-item-${i}`}
+            attached={media[i] ?? []}
+            onChange={(update) => onMediaChange(i, update)}
+            library={library}
+            canUpload={canUpload}
           />
           {providers.length > 0 && (
             <p className="flex flex-wrap gap-x-3 text-xs" aria-live="polite">
@@ -438,12 +535,41 @@ function ThreadEditor({
   );
 }
 
-function ThreadPreview({ items, provider }: { items: string[]; provider: ProviderId }) {
+function ThreadPreview({
+  items,
+  media,
+  library,
+  provider,
+}: {
+  items: string[];
+  media: ItemMedia[][];
+  library: ComposerMedia[];
+  provider: ProviderId;
+}) {
+  const byId = new Map(library.map((m) => [m.id, m]));
   return (
     <ol className="flex flex-col gap-2">
       {items.map((body, i) => (
         <li key={i} className="rounded-md border border-border bg-surface p-3 text-sm">
           <p className="whitespace-pre-wrap">{body || <span className="text-muted">Empty</span>}</p>
+          {(media[i]?.length ?? 0) > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {media[i]?.map((m) => {
+                const url = byId.get(m.mediaId)?.previewUrl;
+                return (
+                  <li
+                    key={m.mediaId}
+                    className="size-16 overflow-hidden rounded-sm bg-surface-hover"
+                  >
+                    {url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt={m.altText} className="size-full object-cover" />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <p className="mt-1 text-xs">
             <Counter provider={provider} body={body} />
           </p>
