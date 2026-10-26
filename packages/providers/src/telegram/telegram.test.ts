@@ -324,3 +324,95 @@ describe('publish()', () => {
     });
   });
 });
+
+describe('publish() with images', () => {
+  /** Captures a multipart call: its text fields and its files. */
+  function captureForm(method: string, fixtureName: string) {
+    const seen: { fields: Record<string, string>; files: Record<string, string> } = {
+      fields: {},
+      files: {},
+    };
+    server.use(
+      http.post(api(method), async ({ request }) => {
+        for (const [key, value] of (await request.formData()).entries()) {
+          if (value instanceof File) seen.files[key] = `${value.name} ${value.type}`;
+          else seen.fields[key] = String(value);
+        }
+        return reply(fixtureName);
+      }),
+    );
+    return seen;
+  }
+
+  it('sends one image with sendPhoto and the text as its caption', async () => {
+    const seen = captureForm('sendPhoto', 'send-photo');
+    const step = await telegramAdapter.publish(
+      ctx({ bodies: ['Fresh roast'], media: [[{ id: 'm1' }]], settings: { silent: true } }),
+    );
+    expect(seen).toEqual({
+      fields: { chat_id: CHAT_ID, disable_notification: 'true', caption: 'Fresh roast' },
+      files: { photo: 'photo.png image/png' },
+    });
+    expect(step).toEqual({
+      kind: 'done',
+      externalId: '43',
+      url: 'https://t.me/acmecoffee_news/43',
+      meta: { messageId: 43, chatId: -1001000000002 },
+    });
+  });
+
+  it('sends several images as an album, captioning the first', async () => {
+    const seen = captureForm('sendMediaGroup', 'send-media-group');
+    const step = await telegramAdapter.publish(
+      ctx({ bodies: ['Fresh roast'], media: [[{ id: 'm1' }, { id: 'm2' }]] }),
+    );
+    expect(seen.files).toEqual({ photo0: 'photo0.png image/png', photo1: 'photo1.png image/png' });
+    expect(JSON.parse(seen.fields.media ?? '[]')).toEqual([
+      { type: 'photo', media: 'attach://photo0', caption: 'Fresh roast' },
+      { type: 'photo', media: 'attach://photo1' },
+    ]);
+    expect(step).toMatchObject({ kind: 'done', externalId: '44' });
+  });
+
+  it('sends images without a caption when there is no text', async () => {
+    const seen = captureForm('sendPhoto', 'send-photo');
+    await telegramAdapter.publish(ctx({ bodies: [''], media: [[{ id: 'm1' }]] }));
+    expect(seen.fields.caption).toBeUndefined();
+  });
+
+  it('retries while an image is still being checked, and fails one that is gone', async () => {
+    const seen = captureForm('sendPhoto', 'send-photo');
+    const resolve = (retryable: boolean) =>
+      telegramAdapter.publish(
+        ctx({
+          media: [[{ id: 'm1' }]],
+          resolver: { getFile: async () => ({ ok: false, retryable, message: 'nope' }) },
+        }),
+      );
+    expect(await resolve(true)).toMatchObject({ kind: 'error', errorKind: 'transient' });
+    expect(await resolve(false)).toMatchObject({ kind: 'error', errorKind: 'validation' });
+    expect(seen.files).toEqual({});
+  });
+
+  it('maps errors from photo calls like any other', async () => {
+    server.use(http.post(api('sendPhoto'), () => reply('error-rate-limit', 429)));
+    expect(await telegramAdapter.publish(ctx({ media: [[{ id: 'm1' }]] }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'rate_limit',
+    });
+  });
+
+  it('limits the caption and warns that alt text is not sent', () => {
+    const issues = (body: string, alt = '') =>
+      telegramAdapter
+        .validate(ctx({ bodies: [body], media: [[{ id: 'm1', alt }]] }).post, [])
+        .map((i) => `${i.severity}:${i.code}`);
+    expect(issues('x'.repeat(1024))).toEqual([]);
+    expect(issues('x'.repeat(1025))).toEqual(['error:caption_too_long']);
+    expect(issues('hi', 'A cup')).toEqual(['warning:alt_text_unsupported']);
+    // Text-only messages keep the full 4,096.
+    expect(
+      telegramAdapter.validate(ctx({ bodies: ['x'.repeat(4000)] }).post, []).map((i) => i.code),
+    ).toEqual([]);
+  });
+});

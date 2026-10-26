@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 43,
+    "sender_chat": {
+      "id": -1001000000002,
+      "title": "Acme Coffee News",
+      "username": "acmecoffee_news",
+      "type": "channel"
+    },
+    "chat": {
+      "id": -1001000000002,
+      "title": "Acme Coffee News",
+      "username": "acmecoffee_news",
+      "type": "channel"
+    },
+    "date": 1793000000,
+    "photo": [
+      {
+        "file_id": "AgACAgQAAx0Fake-small",
+        "file_unique_id": "AQADFakeS",
+        "width": 4,
+        "height": 3,
+        "file_size": 120
+      }
+    ],
+    "caption": "Fresh roast"
+  }
+}
