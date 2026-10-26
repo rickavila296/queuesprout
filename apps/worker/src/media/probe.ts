@@ -26,6 +26,10 @@ export interface ProbeDeps {
 /** Files checked per tick; each is at most 20 MB, so this bounds the tick's memory. */
 const BATCH = 5;
 
+/** A file still failing with transient errors this long after upload is given up on. */
+export const PROBE_GIVE_UP_MS = 30 * 60_000;
+const GAVE_UP = 'We could not check this file. Delete it and upload it again.';
+
 type Outcome = 'ready' | 'failed' | 'deferred';
 
 /** A user-facing reason the file was refused. Anything else is treated as transient. */
@@ -92,7 +96,10 @@ async function probeOne(deps: ProbeDeps, media: MediaToProbe): Promise<Outcome> 
  * magic bytes, reads its dimensions, writes a thumbnail and marks it ready. Refused files
  * are marked failed with a reason; storage or network errors leave the file for a later tick.
  */
-export async function probeMediaOnce(deps: ProbeDeps): Promise<Record<Outcome, number>> {
+export async function probeMediaOnce(
+  deps: ProbeDeps,
+  now: () => Date = () => new Date(),
+): Promise<Record<Outcome, number>> {
   const summary: Record<Outcome, number> = { ready: 0, failed: 0, deferred: 0 };
   for (const media of await listMediaToProbe(deps.db, BATCH)) {
     try {
@@ -101,6 +108,10 @@ export async function probeMediaOnce(deps: ProbeDeps): Promise<Record<Outcome, n
       if (error instanceof RejectedFile) {
         await markMediaFailed(deps.db, media.id, error.message);
         deps.log.info({ mediaId: media.id, reason: error.message }, 'media refused');
+        summary.failed++;
+      } else if (now().getTime() - media.createdAt.getTime() > PROBE_GIVE_UP_MS) {
+        await markMediaFailed(deps.db, media.id, GAVE_UP);
+        deps.log.warn({ err: error, mediaId: media.id }, 'media probe gave up');
         summary.failed++;
       } else {
         await deferMediaProbe(deps.db, media.id);

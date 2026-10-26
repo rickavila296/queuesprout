@@ -255,6 +255,27 @@ describe('media uploads', () => {
     ).toBe('media_deleted');
   });
 
+  it('gives the quota back as soon as an unused file is deleted', async () => {
+    const i = input({ bytes: 7000 });
+    await reserve(asEd, i);
+    await confirm(asEd, i.mediaId, i.bytes);
+    const charged = await usage();
+    expect(await da.withWorkspace(asEd, (tx) => deleteMedia(tx, workspaceId, i.mediaId))).toBe(
+      true,
+    );
+    expect(await usage()).toBe(charged - 7000);
+    const [row] = await t.owner.select().from(mediaAssets).where(eq(mediaAssets.id, i.mediaId));
+    expect(row?.status).toBe('purged');
+    expect(row?.purgedAt).toBeNull();
+
+    // Another workspace's id does not match the file.
+    const j = input();
+    await reserve(asEd, j);
+    expect(
+      await da.withWorkspace(asEve, (tx) => deleteMedia(tx, asEve.workspaceId, j.mediaId)),
+    ).toBe(false);
+  });
+
   it('locks attachments once their post is in flight', async () => {
     const i = input();
     await reserve(asEd, i);
@@ -407,6 +428,20 @@ describe('media uploads', () => {
         getPostGroup(tx, workspaceId, saved.groupId),
       );
       expect(after?.posts[0]?.media).toEqual([[{ mediaId: a, altText: 'only' }], []]);
+    });
+
+    it('keeps a deleted file charged while a post still uses it', async () => {
+      const a = await uploaded();
+      const media = [[{ mediaId: a, altText: '' }]];
+      expect(
+        (await save(asEd, { baseMedia: media, channels: [{ channelId, items: ['x'], media }] })).ok,
+      ).toBe(true);
+      const charged = await usage();
+      await da.withWorkspace(asEd, (tx) => deleteMedia(tx, workspaceId, a));
+      expect(await usage()).toBe(charged);
+      const [row] = await t.owner.select().from(mediaAssets).where(eq(mediaAssets.id, a));
+      expect(row?.status).toBe('processing');
+      expect(row?.deletedAt).not.toBeNull();
     });
 
     it('refuses files that are deleted, still uploading or from another workspace', async () => {

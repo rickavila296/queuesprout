@@ -5,6 +5,7 @@ import { formatBytes, WORKSPACE_STORAGE_QUOTA_BYTES, type MediaStatus } from '@q
 import { presignGet } from '@queuesprout/storage';
 import { Badge, Card } from '@queuesprout/ui';
 import { ConfirmButton } from '@/components/confirm-button';
+import { RefreshWhile } from '@/components/refresh-while';
 import { dataAccess } from '@/lib/db';
 import { requireWorkspace } from '@/lib/session';
 import { storage } from '@/lib/storage';
@@ -48,6 +49,7 @@ export default async function MediaPage({ params }: PageProps<'/w/[slug]/media'>
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
+      <RefreshWhile active={media.some((m) => m.status === 'processing')} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Media</h1>

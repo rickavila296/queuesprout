@@ -11,7 +11,7 @@ import {
   putObject,
   type Storage,
 } from '@queuesprout/storage';
-import { probeMediaOnce } from './probe';
+import { PROBE_GIVE_UP_MS, probeMediaOnce } from './probe';
 
 const { mediaAssets, workspaces } = schema;
 
@@ -166,6 +166,23 @@ describe.skipIf(!endpoint)('media.probe (real Postgres and S3)', () => {
 
     await probeMediaOnce({ db: t.owner, storage, log });
     expect((await row(id)).status).toBe('ready');
+  });
+
+  it('gives up on a file that keeps failing long after it was uploaded', async () => {
+    const id = await confirmed(await solid(10, 10).png().toBuffer(), 'image/png', 'png');
+    const down = createStorage({
+      endpoint: 'http://127.0.0.1:1',
+      bucket: 'queuesprout-media',
+      accessKeyId: 'x',
+      secretAccessKey: 'y',
+      forcePathStyle: true,
+    });
+    const later = () => new Date(Date.now() + PROBE_GIVE_UP_MS + 60_000);
+    await probeMediaOnce({ db: t.owner, storage: down, log }, later);
+    expect(await row(id)).toMatchObject({
+      status: 'failed',
+      errorMessage: expect.stringMatching(/could not check/),
+    });
   });
 
   it('skips deleted uploads', async () => {

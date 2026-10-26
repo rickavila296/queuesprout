@@ -4,10 +4,17 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { assertRole, ForbiddenError } from '@queuesprout/auth';
 import { canInviteAs } from '@queuesprout/core';
-import { createInvite, getWorkspace, revokeInvite } from '@queuesprout/db';
+import {
+  createInvite,
+  getWorkspace,
+  removeMember,
+  revokeInvite,
+  updateMemberRole,
+} from '@queuesprout/db';
 import {
   fail,
   INVITE_TTL_DAYS,
+  invitableRoleSchema,
   inviteMemberSchema,
   ok,
   workspaceSlugSchema,
@@ -82,6 +89,41 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
   assertRole(ctx, 'admin');
   await dataAccess().withWorkspace(ctx, (tx) =>
     revokeInvite(tx, ctx.workspaceId, parsed.data.inviteId),
+  );
+  revalidatePath(`/w/${parsed.data.workspaceSlug}/settings/members`);
+}
+
+const memberSchema = z.object({ workspaceSlug: workspaceSlugSchema, userId: z.uuid() });
+
+/** Admins change anyone's role except the owner's (RLS) and their own (so they keep access). */
+export async function changeMemberRoleAction(formData: FormData): Promise<void> {
+  const parsed = memberSchema.extend({ role: invitableRoleSchema }).safeParse({
+    workspaceSlug: formData.get('workspaceSlug'),
+    userId: formData.get('userId'),
+    role: formData.get('role'),
+  });
+  if (!parsed.success) return;
+  const { user, ctx } = await requireWorkspace(parsed.data.workspaceSlug);
+  assertRole(ctx, 'admin');
+  if (parsed.data.userId === user.id) return;
+  await dataAccess().withWorkspace(ctx, (tx) =>
+    updateMemberRole(tx, ctx.workspaceId, parsed.data.userId, parsed.data.role),
+  );
+  revalidatePath(`/w/${parsed.data.workspaceSlug}/settings/members`);
+}
+
+/** Admins remove anyone except the owner (RLS) and themselves. */
+export async function removeMemberAction(formData: FormData): Promise<void> {
+  const parsed = memberSchema.safeParse({
+    workspaceSlug: formData.get('workspaceSlug'),
+    userId: formData.get('userId'),
+  });
+  if (!parsed.success) return;
+  const { user, ctx } = await requireWorkspace(parsed.data.workspaceSlug);
+  assertRole(ctx, 'admin');
+  if (parsed.data.userId === user.id) return;
+  await dataAccess().withWorkspace(ctx, (tx) =>
+    removeMember(tx, ctx.workspaceId, parsed.data.userId),
   );
   revalidatePath(`/w/${parsed.data.workspaceSlug}/settings/members`);
 }

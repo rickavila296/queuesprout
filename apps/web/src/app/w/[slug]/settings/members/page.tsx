@@ -6,6 +6,7 @@ import { dataAccess } from '@/lib/db';
 import { requireWorkspace } from '@/lib/session';
 import { revokeInviteAction } from './actions';
 import { InviteForm } from './invite-form';
+import { MemberControls } from './member-controls';
 
 export const metadata: Metadata = { title: 'Members' };
 
@@ -52,7 +53,16 @@ export default async function MembersPage({ params }: PageProps<'/w/[slug]/setti
                 </p>
                 <p className="truncate text-sm text-muted">{m.email}</p>
               </div>
-              <Badge tone={m.role === 'owner' ? 'success' : 'neutral'}>{m.role}</Badge>
+              {manage && m.role !== 'owner' && m.userId !== user.id ? (
+                <MemberControls
+                  workspaceSlug={slug}
+                  userId={m.userId}
+                  name={m.displayName || m.email}
+                  role={m.role}
+                />
+              ) : (
+                <Badge tone={m.role === 'owner' ? 'success' : 'neutral'}>{m.role}</Badge>
+              )}
             </li>
           ))}
         </ul>

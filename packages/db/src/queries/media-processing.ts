@@ -11,6 +11,7 @@ export interface MediaToProbe {
   storageKey: string;
   mime: string;
   bytes: number;
+  createdAt: Date;
 }
 
 /** Oldest first. Deleted files are skipped; the retention job removes them. */
@@ -22,6 +23,7 @@ export function listMediaToProbe(db: Database, limit: number): Promise<MediaToPr
       storageKey: mediaAssets.storageKey,
       mime: mediaAssets.mime,
       bytes: mediaAssets.bytes,
+      createdAt: mediaAssets.createdAt,
     })
     .from(mediaAssets)
     .where(and(eq(mediaAssets.status, 'processing'), isNull(mediaAssets.deletedAt)))
@@ -132,15 +134,7 @@ export async function markMediaPurged(db: Database, now: Date, limit: number): P
       SELECT m.id, m.status AS old_status
       FROM media_assets m
       WHERE m.status <> 'purged'
-        AND NOT EXISTS (
-          SELECT 1 FROM post_item_media pim
-          JOIN post_items pi ON pi.id = pim.post_item_id
-          JOIN posts p ON p.id = pi.post_id
-          WHERE pim.media_id = m.id
-            AND (p.status NOT IN ('published', 'cancelled', 'failed')
-              OR (p.status = 'failed'
-                AND p.updated_at > ${at}::timestamptz - make_interval(days => ${r.failedPostHoldDays})))
-        )
+        AND NOT app.media_needed_by_post(m.id, ${at}::timestamptz, ${r.failedPostHoldDays})
         AND (
           (m.status = 'uploading'
             AND m.created_at < ${at}::timestamptz - make_interval(hours => ${r.abandonedUploadHours}))

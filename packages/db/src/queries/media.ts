@@ -140,20 +140,16 @@ export function listMedia(tx: Tx, workspaceId: string): Promise<MediaSummary[]> 
     .limit(MEDIA_LIBRARY_PAGE_SIZE);
 }
 
-/** Soft delete; the retention job removes the files once no active post uses them. */
+/**
+ * Soft delete (app.delete_media). A file no post needs gives its bytes back to the quota
+ * at once; the retention job removes the objects. False when the file was not there.
+ */
 export async function deleteMedia(tx: Tx, workspaceId: string, mediaId: string): Promise<boolean> {
-  const rows = await tx
-    .update(mediaAssets)
-    .set({ deletedAt: sql`now()` })
-    .where(
-      and(
-        eq(mediaAssets.workspaceId, workspaceId),
-        eq(mediaAssets.id, mediaId),
-        isNull(mediaAssets.deletedAt),
-      ),
-    )
-    .returning({ id: mediaAssets.id });
-  return rows.length > 0;
+  const result = await tx.execute(
+    sql`select app.delete_media(${workspaceId}::uuid, ${mediaId}::uuid) as deleted`,
+  );
+  const row = result.rows[0] as { deleted?: boolean } | undefined;
+  return row?.deleted === true;
 }
 
 export async function getStorageUsage(tx: Tx, workspaceId: string): Promise<number> {

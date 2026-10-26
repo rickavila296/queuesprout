@@ -44,7 +44,7 @@ export default async function InvitePage({ params }: PageProps<'/invite/[token]'
               href={`/sign-in?next=${encodeURIComponent(`/invite/${token}`)}` as '/sign-in'}
               className={buttonVariants({ size: 'lg' })}
             >
-              Sign in as {invite.email} to accept
+              Sign in to accept
             </Link>
           ) : signedInEmail === invite.email.toLowerCase() ? (
             <AcceptForm token={token} />

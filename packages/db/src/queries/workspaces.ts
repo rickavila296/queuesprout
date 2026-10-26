@@ -79,6 +79,33 @@ export async function listMembers(tx: Tx, workspaceId: string): Promise<MemberRo
     .orderBy(asc(workspaceMembers.createdAt));
 }
 
+/**
+ * Changes a member's role. RLS lets only admins do this, never on the owner's row and never
+ * to owner, so false means the member is gone or the change is not allowed.
+ */
+export async function updateMemberRole(
+  tx: Tx,
+  workspaceId: string,
+  userId: string,
+  role: InvitableRole,
+): Promise<boolean> {
+  const rows = await tx
+    .update(workspaceMembers)
+    .set({ role })
+    .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
+    .returning({ userId: workspaceMembers.userId });
+  return rows.length > 0;
+}
+
+/** Removes a member. RLS lets only admins do this, and never removes the owner. */
+export async function removeMember(tx: Tx, workspaceId: string, userId: string): Promise<boolean> {
+  const rows = await tx
+    .delete(workspaceMembers)
+    .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
+    .returning({ userId: workspaceMembers.userId });
+  return rows.length > 0;
+}
+
 export interface InviteRow {
   id: string;
   email: string;
