@@ -34,11 +34,13 @@ describe('fitImage', () => {
   });
 
   it('turns a PNG that will not fit into a JPEG under maxBytes', async () => {
-    const png = await noise(1800, 1200).png().toBuffer();
-    expect(png.byteLength).toBeGreaterThan(BLUESKY.maxBytes);
-    const out = await fitImage(png, BLUESKY);
+    // Small enough to stay fast on a busy machine; the cap forces the PNG out.
+    const spec = { ...BLUESKY, maxBytes: 150_000 };
+    const png = await noise(500, 400).png().toBuffer();
+    expect(png.byteLength).toBeGreaterThan(spec.maxBytes);
+    const out = await fitImage(png, spec);
     expect(out?.mime).toBe('image/jpeg');
-    expect(out?.bytes.byteLength).toBeLessThanOrEqual(BLUESKY.maxBytes);
+    expect(out?.bytes.byteLength).toBeLessThanOrEqual(spec.maxBytes);
   });
 
   it('converts a type the platform does not take, keeping the first GIF frame', async () => {

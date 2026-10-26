@@ -8,6 +8,7 @@ import { createAdapterPicker } from './adapters';
 import { parseWorkerEnv } from './env';
 import { createLogger } from './logger';
 import { probeMediaOnce } from './media/probe';
+import { runMediaRetention } from './media/retention';
 import { sendFailureEmails } from './notifications/failures';
 import { logMailer, resendMailer } from './notifications/mailer';
 import { dispatchOnce, type Enqueue } from './publishing/dispatcher';
@@ -22,6 +23,7 @@ const QUEUES = {
   publishStep: 'publish.step',
   tokenRefresh: 'token.refresh',
   failureEmails: 'notify.failures',
+  mediaRetention: 'media.retention',
 } as const;
 
 /** The dispatcher reads due posts from Postgres this often. */
@@ -148,6 +150,20 @@ async function main(): Promise<void> {
         dispatching = false;
       });
   }, DISPATCH_INTERVAL_MS);
+
+  if (storage) {
+    await boss.createQueue(QUEUES.mediaRetention, { policy: 'singleton' });
+    await boss.schedule(QUEUES.mediaRetention, '*/10 * * * *');
+    await boss.work(QUEUES.mediaRetention, async () => {
+      const summary = await runMediaRetention({ db, storage, now: () => new Date(), log });
+      if (summary.purged + summary.removed + summary.errors > 0) {
+        log.info(summary, 'media retention finished');
+      }
+    });
+  } else {
+    // Without storage nothing can be removed; files wait until S3_* is set.
+    await boss.unschedule(QUEUES.mediaRetention).catch(() => undefined);
+  }
 
   let prober: NodeJS.Timeout | undefined;
   if (storage) {
