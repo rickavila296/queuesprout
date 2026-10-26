@@ -6,6 +6,7 @@ import type { ProviderId } from '@queuesprout/shared';
 import { getProviderDefinition } from './client';
 import { blueskyAdapter } from './bluesky';
 import { discordAdapter } from './discord';
+import { telegramAdapter } from './telegram';
 import { mastodonAdapter } from './mastodon';
 import type { ProviderAdapter } from './contract';
 import { createMockAdapter, type MockOptions } from './mock/mock-adapter';
@@ -22,6 +23,7 @@ const LIVE_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
   bluesky: blueskyAdapter as ProviderAdapter,
   mastodon: mastodonAdapter as ProviderAdapter,
   discord: discordAdapter as ProviderAdapter,
+  telegram: telegramAdapter as ProviderAdapter,
 };
 
 export type AdapterResolution =

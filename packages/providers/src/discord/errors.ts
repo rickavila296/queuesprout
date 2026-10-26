@@ -1,4 +1,5 @@
 import type { PublishStep } from '@queuesprout/shared';
+import { networkErrorCode, wasNeverSent } from '../net';
 
 /** A Discord API call that returned a non-2xx status. */
 export class DiscordError extends Error {
@@ -17,15 +18,7 @@ export class DiscordError extends Error {
 /** The webhook was deleted or its token reset: only reconnecting fixes it. */
 export const UNKNOWN_WEBHOOK = 10015;
 
-/** Errors fetch raises before a request leaves the machine, so a retry cannot double-post. */
-const NOT_SENT = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT']);
-
 type StepError = Extract<PublishStep, { kind: 'error' }>;
-
-function networkCode(error: unknown): string | undefined {
-  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
-  return typeof cause?.code === 'string' ? cause.code : undefined;
-}
 
 /**
  * Maps any failure of a publish call to an errorKind. Webhooks have no idempotency key,
@@ -78,8 +71,8 @@ export function toStepError(error: unknown): StepError {
     };
   }
   const name = error instanceof Error ? error.name : 'Error';
-  const code = networkCode(error);
-  if (code && NOT_SENT.has(code)) {
+  const code = networkErrorCode(error);
+  if (wasNeverSent(error)) {
     return {
       kind: 'error',
       errorKind: 'transient',

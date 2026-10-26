@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "result": {
+    "id": -1001000000002,
+    "title": "Acme Coffee News",
+    "username": "acmecoffee_news",
+    "type": "channel",
+    "accent_color_id": 0,
+    "max_reaction_count": 11
+  }
+}
