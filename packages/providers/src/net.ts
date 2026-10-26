@@ -1,3 +1,4 @@
+import { Agent } from 'undici';
 /**
  * Adapters call servers whose address comes from users or from the platform (a Bluesky
  * PDS, a Mastodon instance). Only public https hosts are allowed, so a crafted address
@@ -51,6 +52,28 @@ export function retryAfterMs(headers: Headers, now: Date): number | undefined {
   const epoch = Number(reset);
   const at = Number.isFinite(epoch) ? epoch * 1000 : Date.parse(reset);
   return Number.isNaN(at) ? undefined : Math.max(0, at - now.getTime());
+}
+
+/**
+ * fetch() on a connection of its own, closed afterwards. Node reuses idle keep-alive
+ * sockets, and a platform may close one just as it is reused: the request then fails
+ * with ECONNRESET, which for a post without an idempotency key (Discord, Telegram,
+ * Slack) means "may have posted" and a failed post. A fresh connection costs one TLS
+ * handshake and cannot be stale. Reads the body before closing, so callers get the text.
+ */
+export async function fetchFresh(
+  url: string,
+  init: RequestInit,
+): Promise<{ res: Response; text: string }> {
+  const agent = new Agent({ pipelining: 0 });
+  try {
+    // undici's Agent is the dispatcher Node's fetch runs on; the types live in two packages.
+    const res = await fetch(url, { ...init, dispatcher: agent } as RequestInit);
+    const text = await res.text();
+    return { res, text };
+  } finally {
+    void agent.destroy().catch(() => undefined);
+  }
 }
 
 /** Errors fetch raises before a request leaves the machine, so a retry cannot double-post. */

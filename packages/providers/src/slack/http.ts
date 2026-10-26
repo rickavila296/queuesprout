@@ -1,4 +1,4 @@
-import { retryAfterMs } from '../net';
+import { fetchFresh, retryAfterMs } from '../net';
 import { SlackError } from './errors';
 import { API_URL } from './limits';
 
@@ -21,7 +21,7 @@ export async function slack<T>(
     now?: () => Date;
   },
 ): Promise<T> {
-  const res = await fetch(`${API_URL}/${method}`, {
+  const { res, text } = await fetchFresh(`${API_URL}/${method}`, {
     method: 'POST',
     headers: {
       accept: 'application/json',
@@ -36,7 +36,6 @@ export async function slack<T>(
     signal: options.signal,
     redirect: 'error',
   });
-  const text = await res.text();
   let json: (WebApiResponse & T) | null = null;
   try {
     json = text ? (JSON.parse(text) as WebApiResponse & T) : null;

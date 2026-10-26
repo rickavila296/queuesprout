@@ -1,4 +1,4 @@
-import { retryAfterMs } from '../net';
+import { fetchFresh, retryAfterMs } from '../net';
 import { DiscordError } from './errors';
 import { API_URL } from './limits';
 
@@ -11,7 +11,7 @@ export async function discord<T>(
   path: string,
   options: { body?: unknown; signal: AbortSignal; now?: () => Date },
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
+  const { res, text } = await fetchFresh(`${API_URL}${path}`, {
     method,
     headers: {
       accept: 'application/json',
@@ -21,7 +21,6 @@ export async function discord<T>(
     signal: options.signal,
     redirect: 'error',
   });
-  const text = await res.text();
   let json: unknown = null;
   try {
     json = text ? JSON.parse(text) : null;
