@@ -8,6 +8,8 @@ export interface TestDatabase {
   owner: Database;
   /** Login role in qs_web: subject to RLS, like apps/web. */
   web: Database;
+  /** Connection string for the owner role, for processes the test starts (the worker). */
+  ownerUrl: string;
   drop(): Promise<void>;
 }
 
@@ -55,6 +57,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   return {
     owner,
     web,
+    ownerUrl: ownerUrl.toString(),
     async drop() {
       await web.$client.end();
       await owner.$client.end();

@@ -28,6 +28,14 @@ export const MOCK_FAILURES = {
   '[[mock:timeout]]': 'timeout',
 } as const;
 
+/**
+ * Fails an item's first step with a 503, then lets it through: shows a retry end to end.
+ * Remembered per worker process, so a restart makes the item fail once more.
+ */
+export const MOCK_TRANSIENT_ONCE = '[[mock:transient-once]]';
+const failedOnce = new Set<string>();
+const FAILED_ONCE_LIMIT = 10_000;
+
 export const MOCK_STAGES = { containerCreated: 'container_created' } as const;
 
 export interface MockOptions {
@@ -167,6 +175,11 @@ export function createMockAdapter<TSettings>(
 
       const marker = findMockFailure(ctx.item.body);
       if (marker) return failure(marker);
+      if (ctx.item.body.includes(MOCK_TRANSIENT_ONCE) && !failedOnce.has(ctx.item.id)) {
+        if (failedOnce.size >= FAILED_ONCE_LIMIT) failedOnce.clear();
+        failedOnce.add(ctx.item.id);
+        return failure('transient');
+      }
 
       try {
         await wait(
