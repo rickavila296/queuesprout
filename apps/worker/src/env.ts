@@ -24,6 +24,9 @@ const workerEnvSchema = z
       }),
     /** The web app's origin; mock publishes link to its /mock/posts preview page. */
     PUBLIC_URL: z.url().default('http://localhost:3000'),
+    /** Resend key for failure emails. Without it, emails are logged instead (dev only). */
+    RESEND_API_KEY: z.string().trim().min(1).optional(),
+    EMAIL_FROM: z.string().trim().min(1).default('QueueSprout <hello@localhost>'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     /** Set to false when migrations run as a separate deploy step. */
     MIGRATE_ON_START: z

@@ -19,6 +19,12 @@ describe('parseWorkerEnv', () => {
     expect(() => parseWorkerEnv({})).toThrow(/WORKER_DATABASE_URL/);
   });
 
+  it('treats the Resend key as optional', () => {
+    expect(parseWorkerEnv(base).RESEND_API_KEY).toBeUndefined();
+    expect(parseWorkerEnv({ ...base, RESEND_API_KEY: 're_test' }).RESEND_API_KEY).toBe('re_test');
+    expect(parseWorkerEnv(base).EMAIL_FROM).toBe('QueueSprout <hello@localhost>');
+  });
+
   it('parses MIGRATE_ON_START', () => {
     expect(parseWorkerEnv({ ...base, MIGRATE_ON_START: 'false' }).MIGRATE_ON_START).toBe(false);
   });
