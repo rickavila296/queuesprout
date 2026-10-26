@@ -27,6 +27,8 @@ import {
   ConnectError,
   DISCORD_WEBHOOK_URL_PATTERN,
   normalizeTelegramChat,
+  parseSlackChannel,
+  SLACK_BOT_TOKEN_PATTERN,
   TELEGRAM_BOT_TOKEN_PATTERN,
   normalizeMastodonInstance,
   oauthConnector,
@@ -249,6 +251,75 @@ export async function connectDiscordAction(
     if (error instanceof ForbiddenError) return fail(error.message);
     // Never pass the form data along: the webhook URL is a secret.
     return unexpected('connectDiscord', error);
+  }
+}
+
+const slackSchema = z.object({
+  workspaceSlug: workspaceSlugSchema,
+  botToken: z
+    .string()
+    .trim()
+    .regex(SLACK_BOT_TOKEN_PATTERN, 'Use the Bot User OAuth Token, which starts with xoxb-.'),
+  channel: z
+    .string()
+    .trim()
+    .min(1, 'Enter the channel, like #announcements.')
+    .max(100)
+    .refine((value) => parseSlackChannel(value) !== null, {
+      message: 'Enter the channel as #name, or its id like C0123ABCD.',
+    }),
+});
+
+/**
+ * Connects one Slack channel through an app the admin created and installed in their
+ * Slack workspace. The bot token is checked with Slack, then stored encrypted. Admins only.
+ */
+export async function connectSlackAction(
+  _prev: FormState<{ name: string }>,
+  formData: FormData,
+): Promise<FormState<{ name: string }>> {
+  const parsed = slackSchema.safeParse({
+    workspaceSlug: formData.get('workspaceSlug'),
+    botToken: formData.get('botToken'),
+    channel: formData.get('channel'),
+  });
+  if (!parsed.success) return invalid(parsed.error);
+  const { workspaceSlug, botToken, channel } = parsed.data;
+
+  const { ctx } = await requireWorkspace(workspaceSlug);
+  try {
+    assertRole(ctx, 'admin');
+    const keys = keyring();
+    if (!keys) return fail('Set TOKEN_ENCRYPTION_KEY in .env, then restart the app.');
+    const workspace = await dataAccess().withWorkspace(ctx, (tx) =>
+      getWorkspace(tx, ctx.workspaceId),
+    );
+    if (!workspace || workspace.isSandbox) {
+      return fail('Sandbox workspaces use demo channels only.');
+    }
+    const connect = secretConnector('slack');
+    if (!connect) return fail('Slack is not available.');
+
+    let account: ConnectedAccountInput;
+    try {
+      account = await connect({
+        identifier: channel,
+        secret: botToken,
+        signal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (error instanceof ConnectError) return fail(error.message);
+      throw error;
+    }
+
+    await saveConnectedAccount(ctx, keys, 'slack', account);
+
+    revalidatePath(`/w/${workspaceSlug}`, 'layout');
+    return ok({ name: account.targets[0]?.name ?? account.displayName });
+  } catch (error) {
+    if (error instanceof ForbiddenError) return fail(error.message);
+    // Never pass the form data along: it holds the bot token.
+    return unexpected('connectSlack', error);
   }
 }
 

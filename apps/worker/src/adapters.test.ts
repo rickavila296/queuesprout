@@ -26,7 +26,7 @@ describe('createAdapterPicker', () => {
 
   it('never falls back to mock for a real workspace in live mode', () => {
     const pick = createAdapterPicker({ PUBLISH_MODE: 'live', PUBLIC_URL });
-    expect(pick({ provider: 'slack', workspaceIsSandbox: false })).toEqual({
+    expect(pick({ provider: 'linkedin', workspaceIsSandbox: false })).toEqual({
       ok: false,
       error: 'not_implemented',
     });

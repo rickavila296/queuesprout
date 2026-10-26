@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "url": "https://acme-coffee.slack.com/",
+  "team": "Acme Coffee",
+  "user": "queuesprout",
+  "team_id": "T0000000001",
+  "user_id": "U0000000002",
+  "bot_id": "B0000000003",
+  "is_enterprise_install": false
+}
