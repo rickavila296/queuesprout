@@ -3,6 +3,7 @@ import { canManageMembers } from '@queuesprout/auth';
 import { getWorkspace, listChannels, type ChannelSummary } from '@queuesprout/db';
 import { Badge, Card } from '@queuesprout/ui';
 import { ConfirmButton } from '@/components/confirm-button';
+import { CONNECT_RESULTS, type ConnectResult } from '@/lib/connect';
 import { dataAccess } from '@/lib/db';
 import { providerLabel } from '@/lib/providers';
 import { workspaceIsMock } from '@/lib/publish-mode';
@@ -10,6 +11,7 @@ import { requireWorkspace } from '@/lib/session';
 import { removeChannelAction } from './actions';
 import { BlueskyConnectForm } from './bluesky-connect-form';
 import { DemoChannelForm } from './demo-channel-form';
+import { MastodonConnectForm } from './mastodon-connect-form';
 import { ProviderMark } from './provider-mark';
 
 export const metadata: Metadata = { title: 'Channels' };
@@ -23,8 +25,17 @@ function health(c: ChannelSummary): { label: string; tone: 'success' | 'warning'
   return { label: 'Active', tone: 'success' };
 }
 
-export default async function ChannelsPage({ params }: PageProps<'/w/[slug]/channels'>) {
+export default async function ChannelsPage({
+  params,
+  searchParams,
+}: PageProps<'/w/[slug]/channels'>) {
   const { slug } = await params;
+  const { connect } = await searchParams;
+  // Only known codes are shown, so a crafted link cannot put its own text on the page.
+  const result =
+    typeof connect === 'string' && Object.hasOwn(CONNECT_RESULTS, connect)
+      ? (connect as ConnectResult)
+      : null;
   const { ctx } = await requireWorkspace(slug);
   // Same rule as members: admins manage channels.
   const manage = canManageMembers(ctx);
@@ -54,6 +65,19 @@ export default async function ChannelsPage({ params }: PageProps<'/w/[slug]/chan
           <DemoChannelForm workspaceSlug={slug} />
         </Card>
       )}
+      {result && (
+        <p
+          role="status"
+          className={
+            result === 'connected'
+              ? 'rounded-md border border-border bg-surface px-3 py-2 text-sm text-sprout-600'
+              : 'rounded-md border border-border bg-surface px-3 py-2 text-sm text-danger'
+          }
+        >
+          {CONNECT_RESULTS[result]}
+        </p>
+      )}
+
       {manage && workspace && !workspace.isSandbox && (
         <Card className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
@@ -67,6 +91,15 @@ export default async function ChannelsPage({ params }: PageProps<'/w/[slug]/chan
             </p>
           )}
           <BlueskyConnectForm workspaceSlug={slug} />
+        </Card>
+      )}
+      {manage && workspace && !workspace.isSandbox && (
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <ProviderMark provider="mastodon" />
+            <h2 className="font-medium">Connect Mastodon</h2>
+          </div>
+          <MastodonConnectForm workspaceSlug={slug} />
         </Card>
       )}
 

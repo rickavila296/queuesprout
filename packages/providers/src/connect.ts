@@ -5,10 +5,33 @@
  */
 import type { ProviderId } from '@queuesprout/shared';
 import { connectWithSecret as blueskyConnect } from './bluesky/auth';
-import type { ConnectedAccountInput, SecretConnectContext } from './contract';
+import {
+  exchangeCode as mastodonExchange,
+  getAuthUrl as mastodonAuthUrl,
+  registerApp as mastodonRegister,
+} from './mastodon/auth';
+import type {
+  AppRegistrationContext,
+  AuthContext,
+  AuthStart,
+  CallbackContext,
+  ConnectedAccountInput,
+  RegisteredApp,
+  SecretConnectContext,
+} from './contract';
 
 export { ConnectError } from './contract';
-export type { ConnectedAccountInput, SecretConnectContext, Target } from './contract';
+export type {
+  AppRegistrationContext,
+  AuthContext,
+  AuthStart,
+  CallbackContext,
+  ConnectedAccountInput,
+  RegisteredApp,
+  SecretConnectContext,
+  Target,
+} from './contract';
+export { normalizeInstance as normalizeMastodonInstance } from './mastodon/http';
 export { APP_PASSWORD_PATTERN as BLUESKY_APP_PASSWORD_PATTERN } from './bluesky/auth';
 
 type SecretConnector = (ctx: SecretConnectContext) => Promise<ConnectedAccountInput>;
@@ -20,4 +43,24 @@ const SECRET_CONNECTORS: Partial<Record<ProviderId, SecretConnector>> = {
 
 export function secretConnector(provider: ProviderId): SecretConnector | null {
   return SECRET_CONNECTORS[provider] ?? null;
+}
+
+/** Providers connected through an OAuth redirect. */
+export interface OAuthConnector {
+  /** Set where each server needs its own registered app (Mastodon). */
+  registerApp?: (ctx: AppRegistrationContext) => Promise<RegisteredApp>;
+  getAuthUrl: (ctx: AuthContext) => Promise<AuthStart>;
+  exchangeCode: (ctx: CallbackContext) => Promise<ConnectedAccountInput>;
+}
+
+const OAUTH_CONNECTORS: Partial<Record<ProviderId, OAuthConnector>> = {
+  mastodon: {
+    registerApp: mastodonRegister,
+    getAuthUrl: mastodonAuthUrl,
+    exchangeCode: mastodonExchange,
+  },
+};
+
+export function oauthConnector(provider: ProviderId): OAuthConnector | null {
+  return OAUTH_CONNECTORS[provider] ?? null;
 }

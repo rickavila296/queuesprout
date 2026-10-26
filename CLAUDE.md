@@ -17,7 +17,9 @@
 - apps/web may import providers only from the "@queuesprout/providers/client" entry
   (validate, limits, settingsSchema) and, in server code, "@queuesprout/providers/connect"
   (sign-in and OAuth callbacks). It never calls publish() or refreshToken().
-- apps/worker is the only caller of publish(), refreshToken() and credential decryption.
+- apps/worker is the only caller of publish(), refreshToken() and account-token decryption.
+  apps/web decrypts only OAuth flow secrets (a provider app's client secret, a PKCE verifier)
+  in the OAuth callback, through the helpers in core/credentials/oauth.ts.
 - Credential tables are imported only by packages/core/credentials and apps/worker.
 
 ## Golden Adapter pattern

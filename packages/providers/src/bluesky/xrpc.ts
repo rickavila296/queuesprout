@@ -1,4 +1,4 @@
-import { isPublicHttpsUrl } from '../net';
+import { isPublicHttpsUrl, retryAfterMs } from '../net';
 import { XrpcError } from './errors';
 
 /**
@@ -57,20 +57,4 @@ export async function xrpc<T>(method: 'GET' | 'POST', call: XrpcCall): Promise<T
     );
   }
   return json as T;
-}
-
-/** Retry-After (seconds or an HTTP date), else ratelimit-reset (epoch seconds). */
-export function retryAfterMs(headers: Headers, now: Date): number | undefined {
-  const retryAfter = headers.get('retry-after');
-  if (retryAfter) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
-    const at = Date.parse(retryAfter);
-    if (!Number.isNaN(at)) return Math.max(0, at - now.getTime());
-  }
-  const reset = Number(headers.get('ratelimit-reset'));
-  if (headers.get('ratelimit-reset') && Number.isFinite(reset)) {
-    return Math.max(0, reset * 1000 - now.getTime());
-  }
-  return undefined;
 }
