@@ -1,9 +1,9 @@
 import type { ChannelPost, ProviderDefinition, ValidationIssue } from '../contract';
 import { validateSettings, validateText } from '../validate';
-import { CHARS_PER_URL, MASTODON_LIMITS } from './limits';
+import { CHARS_PER_URL, MASTODON_LIMITS, MAX_ALT_CHARS } from './limits';
 import { mastodonSettingsSchema, type MastodonSettings } from './settings';
 
-const CAPABILITIES = { threads: true, firstComment: false, asyncProcessing: false };
+const CAPABILITIES = { threads: true, firstComment: false, asyncProcessing: true, media: true };
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
 const REMOTE_MENTION = /(^|[^\w@])(@[\w.-]+)@[\w.-]+\.[a-z]{2,}/gi;
 
@@ -36,6 +36,15 @@ export function validateMastodon(post: ChannelPost<unknown>): ValidationIssue[] 
         severity: 'error',
         itemPosition: item.position,
         field: 'body',
+      });
+    }
+    if ((item.altTexts ?? []).some((alt) => [...alt].length > MAX_ALT_CHARS)) {
+      issues.push({
+        code: 'alt_text_too_long',
+        message: `Alt text can be up to ${MAX_ALT_CHARS} characters on Mastodon.`,
+        severity: 'error',
+        itemPosition: item.position,
+        field: 'media',
       });
     }
   }

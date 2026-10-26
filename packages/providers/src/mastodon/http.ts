@@ -11,6 +11,8 @@ export interface MastodonCall {
   token?: string;
   /** JSON body (POST). */
   body?: unknown;
+  /** Multipart body (media uploads); fetch sets the boundary header. */
+  form?: FormData;
   headers?: Record<string, string>;
   signal: AbortSignal;
   now?: () => Date;
@@ -28,7 +30,7 @@ export async function mastodon<T>(method: 'GET' | 'POST', call: MastodonCall): P
   const res = await fetch(url, {
     method,
     headers,
-    body: call.body === undefined ? undefined : JSON.stringify(call.body),
+    body: call.form ?? (call.body === undefined ? undefined : JSON.stringify(call.body)),
     signal: call.signal,
     // The API does not redirect; following one could leave the checked host.
     redirect: 'error',

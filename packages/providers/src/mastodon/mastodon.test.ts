@@ -384,3 +384,190 @@ describe('publish()', () => {
     });
   });
 });
+
+describe('publish() with images', () => {
+  const TWO = [
+    { id: 'm1', alt: 'A green square' },
+    { id: 'm2', alt: '' },
+  ];
+
+  /** Answers uploads with ids 101, 102... ready unless listed in processing. */
+  function captureUploads(processing: string[] = []) {
+    const uploads: { name: string; type: string; size: number; description: string | null }[] = [];
+    server.use(
+      http.post(api('/api/v2/media'), async ({ request }) => {
+        const form = await request.formData();
+        const file = form.get('file');
+        if (!(file instanceof File))
+          return HttpResponse.json({ error: 'no file' }, { status: 422 });
+        uploads.push({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          description: form.get('description') as string | null,
+        });
+        const id = String(100 + uploads.length);
+        const pending = processing.includes(id);
+        return HttpResponse.json(
+          { ...fixture<Record<string, unknown>>(pending ? 'media-processing' : 'media'), id },
+          { status: pending ? 202 : 200 },
+        );
+      }),
+    );
+    return uploads;
+  }
+
+  it('uploads each image with its alt text, then posts with the media ids in order', async () => {
+    const uploads = captureUploads();
+    const statuses = captureStatuses();
+    const step = await mastodonAdapter.publish(ctx({ media: [TWO] }));
+    expect(step).toMatchObject({ kind: 'done', externalId: '1' });
+    expect(uploads).toEqual([
+      { name: 'image-1.png', type: 'image/png', size: 11, description: 'A green square' },
+      { name: 'image-2.png', type: 'image/png', size: 11, description: null },
+    ]);
+    expect(statuses[0]?.body.media_ids).toEqual(['101', '102']);
+  });
+
+  it('posts images with no text', async () => {
+    captureUploads();
+    const statuses = captureStatuses();
+    expect(await mastodonAdapter.publish(ctx({ bodies: [''], media: [TWO] }))).toMatchObject({
+      kind: 'done',
+    });
+    expect(statuses[0]?.body).toMatchObject({ status: '', media_ids: ['101', '102'] });
+  });
+
+  it('waits while the server processes an upload, then posts without uploading again', async () => {
+    const uploads = captureUploads(['102']);
+    const statuses = captureStatuses();
+    let checks = 0;
+    server.use(
+      http.get(api('/api/v1/media/:id'), ({ params }) => {
+        checks++;
+        const stillProcessing = params.id === '102' && checks <= 2;
+        return HttpResponse.json(
+          {
+            ...fixture<Record<string, unknown>>(stillProcessing ? 'media-processing' : 'media'),
+            id: params.id,
+          },
+          { status: stillProcessing ? 206 : 200 },
+        );
+      }),
+    );
+
+    const first = await mastodonAdapter.publish(ctx({ media: [TWO] }));
+    expect(first).toEqual({
+      kind: 'pending',
+      checkpoint: {
+        stage: 'media_uploaded',
+        childContainerIds: ['101', '102'],
+        startedAt: TEST_NOW.toISOString(),
+      },
+      pollAfterMs: 2000,
+    });
+    if (first.kind !== 'pending') return;
+
+    // 101 is ready, 102 still processing.
+    const second = await mastodonAdapter.publish(
+      ctx({ media: [TWO], checkpoint: first.checkpoint }),
+    );
+    expect(second).toEqual(first);
+    expect(statuses).toHaveLength(0);
+
+    const third = await mastodonAdapter.publish(
+      ctx({ media: [TWO], checkpoint: first.checkpoint }),
+    );
+    expect(third).toMatchObject({ kind: 'done' });
+    expect(uploads).toHaveLength(2);
+    expect(statuses[0]?.body.media_ids).toEqual(['101', '102']);
+  });
+
+  it('fits images to the Mastodon spec', async () => {
+    captureUploads();
+    captureStatuses();
+    const specs: unknown[] = [];
+    await mastodonAdapter.publish(
+      ctx({
+        media: [[{ id: 'm1' }]],
+        resolver: {
+          getFile: async (_id, spec) => {
+            specs.push(spec);
+            return {
+              ok: true,
+              file: { bytes: new Uint8Array([1]), mime: 'image/jpeg', width: 1, height: 1 },
+            };
+          },
+        },
+      }),
+    );
+    expect(specs).toEqual([
+      {
+        maxBytes: 8_000_000,
+        maxEdgePx: 2880,
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      },
+    ]);
+  });
+
+  it('retries while an image is still being checked, and fails one that is gone', async () => {
+    const statuses = captureStatuses();
+    const resolve = (retryable: boolean) =>
+      mastodonAdapter.publish(
+        ctx({
+          media: [[{ id: 'm1' }]],
+          resolver: { getFile: async () => ({ ok: false, retryable, message: 'nope' }) },
+        }),
+      );
+    expect(await resolve(true)).toMatchObject({ kind: 'error', errorKind: 'transient' });
+    expect(await resolve(false)).toMatchObject({ kind: 'error', errorKind: 'validation' });
+    expect(statuses).toHaveLength(0);
+  });
+
+  it('maps upload errors like any other call', async () => {
+    const statuses = captureStatuses();
+    server.use(http.post(api('/api/v2/media'), () => errorResponse('error-unprocessable', 422)));
+    expect(await mastodonAdapter.publish(ctx({ media: [TWO] }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'validation',
+    });
+    server.use(
+      http.post(api('/api/v2/media'), () =>
+        errorResponse('error-rate-limit', 429, { 'retry-after': '30' }),
+      ),
+    );
+    expect(await mastodonAdapter.publish(ctx({ media: [TWO] }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'rate_limit',
+      retryAfterMs: 30_000,
+    });
+    expect(statuses).toHaveLength(0);
+  });
+
+  it('maps errors while checking on processing uploads', async () => {
+    server.use(http.get(api('/api/v1/media/:id'), () => new HttpResponse(null, { status: 503 })));
+    const checkpoint = {
+      stage: 'media_uploaded',
+      childContainerIds: ['101'],
+      startedAt: TEST_NOW.toISOString(),
+    };
+    expect(await mastodonAdapter.publish(ctx({ media: [TWO], checkpoint }))).toMatchObject({
+      kind: 'error',
+      errorKind: 'transient',
+    });
+  });
+
+  it('validates image count and alt text length', () => {
+    const codes = (media: { id: string; alt?: string }[]) =>
+      mastodonAdapter
+        .validate(ctx({ media: [media] }).post, [])
+        .filter((i) => i.severity === 'error')
+        .map((i) => i.code);
+    expect(codes(TWO)).toEqual([]);
+    expect(codes(Array.from({ length: 5 }, (_, i) => ({ id: `m${i}` })))).toEqual([
+      'too_many_media',
+    ]);
+    expect(codes([{ id: 'm1', alt: 'x'.repeat(1500) }])).toEqual([]);
+    expect(codes([{ id: 'm1', alt: 'x'.repeat(1501) }])).toEqual(['alt_text_too_long']);
+  });
+});

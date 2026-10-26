@@ -1,0 +1,11 @@
+{
+  "id": "113300000000000101",
+  "type": "image",
+  "url": "https://files.masto.test/media_attachments/files/113/300/000/000/000/101/original/image.png",
+  "preview_url": "https://files.masto.test/media_attachments/files/113/300/000/000/000/101/small/image.png",
+  "remote_url": null,
+  "text_url": null,
+  "meta": { "original": { "width": 4, "height": 3, "size": "4x3", "aspect": 1.3333333333333333 } },
+  "description": "A green square",
+  "blurhash": "UFHb0;00~qD%00Rj%MRj00of%Mof00WB?bof"
+}
