@@ -3,6 +3,7 @@ import type { CalendarPost } from '@queuesprout/db';
 import { addDays, toWallDate, toWallTime } from '@queuesprout/shared';
 import { cn } from '@queuesprout/ui';
 import { PostStatusDot } from '@/components/post-status';
+import { isOverdue } from '@/lib/post-timing';
 import { providerLabel } from '@/lib/providers';
 
 export const dayHeading = (day: string, today: string) => {
@@ -23,12 +24,15 @@ export function ListView({
   slug,
   timezone,
   today,
+  now,
   posts,
   drafts,
 }: {
   slug: string;
   timezone: string;
   today: string;
+  /** Request time, for flagging posts that are past due. */
+  now: Date;
   posts: CalendarPost[];
   drafts: CalendarPost[];
 }) {
@@ -43,7 +47,7 @@ export function ListView({
       {drafts.length > 0 && (
         <DaySection heading="Drafts without a time">
           {drafts.map((p) => (
-            <PostRow key={p.id} post={p} slug={slug} time={null} />
+            <PostRow now={now} key={p.id} post={p} slug={slug} time={null} />
           ))}
         </DaySection>
       )}
@@ -59,6 +63,7 @@ export function ListView({
           >
             {list.map((p) => (
               <PostRow
+                now={now}
                 key={p.id}
                 post={p}
                 slug={slug}
@@ -96,7 +101,17 @@ function DaySection({
   );
 }
 
-function PostRow({ post, slug, time }: { post: CalendarPost; slug: string; time: string | null }) {
+function PostRow({
+  post,
+  slug,
+  time,
+  now,
+}: {
+  post: CalendarPost;
+  slug: string;
+  time: string | null;
+  now: Date;
+}) {
   return (
     <li>
       <Link
@@ -118,7 +133,11 @@ function PostRow({ post, slug, time }: { post: CalendarPost; slug: string; time:
             )}
           </span>
         </span>
-        <PostStatusDot status={post.status} className="shrink-0 pt-0.5" />
+        <PostStatusDot
+          status={post.status}
+          overdue={isOverdue(post, now)}
+          className="shrink-0 pt-0.5"
+        />
       </Link>
     </li>
   );

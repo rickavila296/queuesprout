@@ -21,6 +21,8 @@ describe('parseWorkerEnv', () => {
 
   it('treats the Resend key as optional', () => {
     expect(parseWorkerEnv(base).RESEND_API_KEY).toBeUndefined();
+    // As loaded from the `RESEND_API_KEY=` line in .env.example.
+    expect(parseWorkerEnv({ ...base, RESEND_API_KEY: '' }).RESEND_API_KEY).toBeUndefined();
     expect(parseWorkerEnv({ ...base, RESEND_API_KEY: 're_test' }).RESEND_API_KEY).toBe('re_test');
     expect(parseWorkerEnv(base).EMAIL_FROM).toBe('QueueSprout <hello@localhost>');
   });
