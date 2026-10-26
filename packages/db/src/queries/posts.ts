@@ -10,13 +10,22 @@ import { postGroups, postItems, posts } from '../schema/posts';
  * in-flight posts.
  */
 
-/** Statuses the composer may change. Failed posts are retried from the post page instead. */
+/**
+ * Statuses the composer may change. Failed posts are retried from the post page instead,
+ * and a post with items already published (a retried thread) is locked as well.
+ */
 export const COMPOSER_EDITABLE = [
   'draft',
   'scheduled',
   'cancelled',
 ] as const satisfies readonly PostStatus[];
 const isComposerEditable = (s: PostStatus) => (COMPOSER_EDITABLE as readonly string[]).includes(s);
+
+/**
+ * Items of the post already on the platform. Spelled out as "posts"."id": in a single-table
+ * select Drizzle renders posts.id as a bare "id", which would bind to the subquery's row.
+ */
+const sentItemsSql = sql<number>`(select count(*)::int from post_items pi where pi.post_id = "posts"."id" and pi.status = 'published')`;
 
 export interface SavePostGroupInput {
   workspaceId: string;
@@ -82,7 +91,13 @@ export async function savePostGroup(
   }
 
   let groupId = input.groupId;
-  let existing: { id: string; channelId: string; status: PostStatus; version: number }[] = [];
+  let existing: {
+    id: string;
+    channelId: string;
+    status: PostStatus;
+    version: number;
+    sentItems: number;
+  }[] = [];
   if (groupId) {
     const group = await tx
       .select({ id: postGroups.id })
@@ -96,6 +111,7 @@ export async function savePostGroup(
         channelId: posts.channelId,
         status: posts.status,
         version: posts.version,
+        sentItems: sentItemsSql,
       })
       .from(posts)
       .where(and(eq(posts.groupId, groupId), isNull(posts.deletedAt)))
@@ -112,7 +128,7 @@ export async function savePostGroup(
       if (c.version !== undefined) conflicts.push(c.channelId); // it was deleted elsewhere
       continue;
     }
-    if (!isComposerEditable(post.status)) locked.push(c.channelId);
+    if (!isComposerEditable(post.status) || post.sentItems > 0) locked.push(c.channelId);
     else if (c.version !== post.version) conflicts.push(c.channelId);
   }
   if (locked.length > 0) return { ok: false, error: 'locked', channelIds: locked };
@@ -208,6 +224,8 @@ export interface GroupPost {
   errorMessage: string | null;
   version: number;
   items: string[];
+  /** Items already published; such a post is no longer composer-editable. */
+  sentItems: number;
 }
 
 export interface PostGroupDetail {
@@ -249,7 +267,12 @@ export async function getPostGroup(
     rows.length === 0
       ? []
       : await tx
-          .select({ postId: postItems.postId, position: postItems.position, body: postItems.body })
+          .select({
+            postId: postItems.postId,
+            position: postItems.position,
+            body: postItems.body,
+            status: postItems.status,
+          })
           .from(postItems)
           .where(
             inArray(
@@ -263,10 +286,14 @@ export async function getPostGroup(
     id: group.id,
     baseItems: [group.baseBody, ...group.baseReplies],
     createdAt: group.createdAt,
-    posts: rows.map((r) => ({
-      ...r,
-      items: items.filter((i) => i.postId === r.id).map((i) => i.body),
-    })),
+    posts: rows.map((r) => {
+      const own = items.filter((i) => i.postId === r.id);
+      return {
+        ...r,
+        items: own.map((i) => i.body),
+        sentItems: own.filter((i) => i.status === 'published').length,
+      };
+    }),
   };
 }
 

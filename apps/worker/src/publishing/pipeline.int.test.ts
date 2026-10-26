@@ -7,7 +7,7 @@ import {
   encryptCredentials,
 } from '@queuesprout/core/credentials';
 import { MAX_RETRIES } from '@queuesprout/core/publishing';
-import { schema } from '@queuesprout/db';
+import { createDataAccess, retryPost, schema } from '@queuesprout/db';
 import { beginStep, claimPosts } from '@queuesprout/db/publishing';
 import { accountCredentials } from '@queuesprout/db/schema/credentials';
 import { createTestDatabase, type TestDatabase } from '@queuesprout/db/testing';
@@ -26,6 +26,7 @@ const {
   posts,
   publishAttempts,
   user,
+  workspaceMembers,
   workspaces,
 } = schema;
 
@@ -277,6 +278,40 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
     expect(post.errorMessage).toContain(`Gave up after ${MAX_RETRIES} retries`);
     expect(calls).toHaveLength(MAX_RETRIES + 1);
     expect((await getItems(id))[0]?.status).toBe('failed');
+  });
+
+  it('retries a failed thread from the post page without re-posting what is out', async () => {
+    const { channel } = await connect('mastodon');
+    const id = await schedule(channel.id, ['first', 'second', 'third']);
+    overrides.set('second', [
+      { kind: 'error', errorKind: 'validation', message: 'Platform refused it.' },
+    ]);
+    await tick();
+    expect(await getPost(id)).toMatchObject({ status: 'failed', errorKind: 'validation' });
+    expect((await getItems(id)).map((i) => i.status)).toEqual(['published', 'failed', 'pending']);
+    const firstId = (await getItems(id))[0]?.externalId;
+
+    // An editor presses Retry: the web role, through app.retry_post().
+    await t.owner
+      .insert(workspaceMembers)
+      .values({ workspaceId, userId: ownerId, role: 'owner' })
+      .onConflictDoNothing();
+    const da = createDataAccess(t.web);
+    const asOwner = await da.resolveWorkspace(ownerId, 'demo');
+    if (!asOwner) throw new Error('not a member');
+    expect(await da.withWorkspace(asOwner, (tx) => retryPost(tx, id, false))).toEqual({
+      ok: true,
+    });
+
+    // retry_post schedules for the database's now(), a moment after this test's clock.
+    advance(60_000);
+    await tick();
+    expect(await getPost(id)).toMatchObject({ status: 'published', errorKind: null });
+    const items = await getItems(id);
+    expect(items.map((i) => i.status)).toEqual(['published', 'published', 'published']);
+    expect(items[0]?.externalId).toBe(firstId);
+    // Item 0 went out once; item 1 failed, then went out on the retry.
+    expect(calls.map((c) => c.position)).toEqual([0, 1, 1, 2]);
   });
 
   it('marks the account needs_reauth on an auth error and blocks its other posts', async () => {
