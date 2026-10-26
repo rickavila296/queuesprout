@@ -163,8 +163,12 @@ export default tseslint.config(
               message: 'Test harnesses are for tests only.',
             },
             {
-              group: ['@queuesprout/db/publishing', '@queuesprout/core/publishing'],
-              message: 'The publishing pipeline runs in apps/worker only.',
+              group: [
+                '@queuesprout/db/publishing',
+                '@queuesprout/core/publishing',
+                '@queuesprout/db/media-processing',
+              ],
+              message: 'The publishing pipeline and media processing run in apps/worker only.',
             },
           ],
         },

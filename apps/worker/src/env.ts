@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { parseKeyring, type Keyring } from '@queuesprout/core/credentials';
 import { publishModeSchema } from '@queuesprout/shared';
 
+// .env.example ships blank values like `S3_BUCKET=`, which Node loads as '': treat them as unset.
+const optional = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v === '' ? undefined : v));
+
 const workerEnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -32,6 +39,16 @@ const workerEnvSchema = z
       .optional()
       .transform((v) => (v === '' ? undefined : v)),
     EMAIL_FROM: z.string().trim().min(1).default('QueueSprout <hello@localhost>'),
+    /** S3-compatible media bucket (same values as apps/web). Media checks are off until set. */
+    S3_ENDPOINT: optional.pipe(z.url().optional()),
+    S3_REGION: z.string().default('auto'),
+    S3_BUCKET: optional,
+    S3_ACCESS_KEY_ID: optional,
+    S3_SECRET_ACCESS_KEY: optional,
+    S3_FORCE_PATH_STYLE: z
+      .enum(['true', 'false', ''])
+      .default('false')
+      .transform((v) => v === 'true'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     /** Set to false when migrations run as a separate deploy step. */
     MIGRATE_ON_START: z

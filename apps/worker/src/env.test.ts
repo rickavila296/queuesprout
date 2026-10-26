@@ -27,6 +27,22 @@ describe('parseWorkerEnv', () => {
     expect(parseWorkerEnv(base).EMAIL_FROM).toBe('QueueSprout <hello@localhost>');
   });
 
+  it('treats blank storage settings as unset', () => {
+    const blank = {
+      S3_ENDPOINT: '',
+      S3_BUCKET: '',
+      S3_ACCESS_KEY_ID: '',
+      S3_SECRET_ACCESS_KEY: '',
+    };
+    const e = parseWorkerEnv({ ...base, ...blank, S3_FORCE_PATH_STYLE: '' });
+    expect([e.S3_ENDPOINT, e.S3_BUCKET, e.S3_FORCE_PATH_STYLE]).toEqual([
+      undefined,
+      undefined,
+      false,
+    ]);
+    expect(() => parseWorkerEnv({ ...base, S3_ENDPOINT: 'not a url' })).toThrow(/S3_ENDPOINT/);
+  });
+
   it('parses MIGRATE_ON_START', () => {
     expect(parseWorkerEnv({ ...base, MIGRATE_ON_START: 'false' }).MIGRATE_ON_START).toBe(false);
   });

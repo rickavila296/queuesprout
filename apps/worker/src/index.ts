@@ -2,10 +2,12 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PgBoss } from 'pg-boss';
 import { createDb, ping } from '@queuesprout/db';
+import { checkBucket, createStorage } from '@queuesprout/storage';
 import { MIGRATIONS_FOLDER, runMigrations } from '@queuesprout/db/migrate';
 import { createAdapterPicker } from './adapters';
 import { parseWorkerEnv } from './env';
 import { createLogger } from './logger';
+import { probeMediaOnce } from './media/probe';
 import { sendFailureEmails } from './notifications/failures';
 import { logMailer, resendMailer } from './notifications/mailer';
 import { dispatchOnce, type Enqueue } from './publishing/dispatcher';
@@ -24,6 +26,8 @@ const QUEUES = {
 
 /** The dispatcher reads due posts from Postgres this often. */
 const DISPATCH_INTERVAL_MS = 15_000;
+/** New uploads are checked this often, so the library shows them ready within seconds. */
+const PROBE_INTERVAL_MS = 5_000;
 
 /** dist/migrations in the built image; packages/db/migrations under tsx. */
 function migrationsFolder(): string {
@@ -131,6 +135,32 @@ async function main(): Promise<void> {
       });
   }, DISPATCH_INTERVAL_MS);
 
+  let prober: NodeJS.Timeout | undefined;
+  if (env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY) {
+    const storage = createStorage({
+      endpoint: env.S3_ENDPOINT,
+      region: env.S3_REGION,
+      bucket: env.S3_BUCKET,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+      forcePathStyle: env.S3_FORCE_PATH_STYLE,
+    });
+    await checkBucket(storage);
+    let probing = false;
+    prober = setInterval(() => {
+      if (probing) return;
+      probing = true;
+      probeMediaOnce({ db, storage, log })
+        .then((s) => s.ready + s.failed > 0 && log.info(s, 'media checked'))
+        .catch((error: unknown) => log.error({ err: error }, 'media probe failed'))
+        .finally(() => {
+          probing = false;
+        });
+    }, PROBE_INTERVAL_MS);
+  } else {
+    log.warn('S3_* is not set: uploaded media stays at "Checking"');
+  }
+
   log.info({ publishMode: env.PUBLISH_MODE }, 'worker started');
 
   let stopping = false;
@@ -139,6 +169,7 @@ async function main(): Promise<void> {
     stopping = true;
     log.info({ signal }, 'shutting down');
     clearInterval(dispatcher);
+    clearInterval(prober);
     // Lets in-flight jobs finish (each publish step is bounded to 60 s).
     await boss.stop({ graceful: true, timeout: 70_000 });
     await db.$client.end();

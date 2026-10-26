@@ -114,6 +114,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1156.0
+        version: 3.1156.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1156.0
+        version: 3.1156.0
       '@queuesprout/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -126,12 +132,18 @@ importers:
       '@queuesprout/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@queuesprout/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       pg-boss:
         specifier: ^12.38.0
         version: 12.38.0(@opentelemetry/api@1.10.0)
       pino:
         specifier: ^10.4.0
         version: 10.4.0
+      sharp:
+        specifier: ^0.35.5
+        version: 0.35.5(@types/node@22.20.5)
       undici:
         specifier: ~6.23.0
         version: 6.23.0
@@ -3983,8 +3995,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.5':
     optionalDependencies:
@@ -5660,7 +5671,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 22.20.5
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:
