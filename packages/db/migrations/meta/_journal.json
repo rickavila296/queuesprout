@@ -57,6 +57,13 @@
       "when": 1792997287339,
       "tag": "0007_phase1_provider_app_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793008800000,
+      "tag": "0008_phase1_retry_post",
+      "breakpoints": true
     }
   ]
 }

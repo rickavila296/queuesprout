@@ -5,3 +5,4 @@ export * from './queries/workspaces';
 export * from './queries/accounts';
 export * from './queries/posts';
 export * from './queries/oauth';
+export * from './queries/history';

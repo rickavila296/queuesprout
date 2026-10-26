@@ -2,7 +2,13 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { hasRole } from '@queuesprout/core';
-import { COMPOSER_EDITABLE, getPostGroup, getWorkspace, listChannels } from '@queuesprout/db';
+import {
+  COMPOSER_EDITABLE,
+  getPostGroup,
+  getPublishHistory,
+  getWorkspace,
+  listChannels,
+} from '@queuesprout/db';
 import { isOverride, toWallTime } from '@queuesprout/shared';
 import { deletePostGroupAction } from '@/app/w/[slug]/compose/actions';
 import { Composer, type ComposerInitial } from '@/components/composer/composer';
@@ -11,6 +17,7 @@ import { toComposerChannels } from '@/components/composer/load';
 import { defaultScheduleWall } from '@/lib/compose';
 import { dataAccess } from '@/lib/db';
 import { requireWorkspace } from '@/lib/session';
+import { DeliveryList, type DeliveryPost } from './delivery';
 
 export const metadata: Metadata = { title: 'Edit post' };
 
@@ -22,16 +29,25 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
   const { ctx } = await requireWorkspace(slug);
   const canEdit = hasRole(ctx.role, 'editor');
 
-  const { workspace, channels, group } = await dataAccess().withWorkspace(ctx, async (tx) => ({
-    workspace: await getWorkspace(tx, ctx.workspaceId),
-    channels: await listChannels(tx, ctx.workspaceId),
-    group: await getPostGroup(tx, ctx.workspaceId, groupId),
-  }));
+  const { workspace, channels, group, history } = await dataAccess().withWorkspace(
+    ctx,
+    async (tx) => {
+      const group = await getPostGroup(tx, ctx.workspaceId, groupId);
+      return {
+        workspace: await getWorkspace(tx, ctx.workspaceId),
+        channels: await listChannels(tx, ctx.workspaceId),
+        group,
+        history: await getPublishHistory(tx, ctx.workspaceId, group?.posts.map((p) => p.id) ?? []),
+      };
+    },
+  );
   if (!workspace || !group || group.posts.length === 0) notFound();
   const tz = workspace.timezone;
 
-  const open = group.posts.filter((p) => editable(p.status));
-  const frozen = group.posts.filter((p) => !editable(p.status));
+  // A post with parts already out (a retried thread) is never re-edited: that would resend them.
+  const isOpen = (p: (typeof group.posts)[number]) => editable(p.status) && p.sentItems === 0;
+  const open = group.posts.filter(isOpen);
+  const frozen = group.posts.filter((p) => !isOpen(p));
   const first = open[0];
   const initial: ComposerInitial = {
     groupId: group.id,
@@ -52,13 +68,22 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
       : defaultScheduleWall(new Date(), tz),
   };
 
+  const showComposer = canEdit && open.length > 0;
+  const delivery = (showComposer ? frozen : group.posts).map((p): DeliveryPost => {
+    const channel = channels.find((c) => c.id === p.channelId);
+    return {
+      ...p,
+      channel: channel?.name ?? 'Removed channel',
+      provider: channel?.provider ?? null,
+      history: history.get(p.id),
+    };
+  });
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">
-          {canEdit && open.length > 0 ? 'Edit post' : 'Post'}
-        </h1>
-        {canEdit && open.length > 0 && (
+        <h1 className="text-xl font-semibold">{showComposer ? 'Edit post' : 'Post'}</h1>
+        {showComposer && (
           <form action={deletePostGroupAction}>
             <input type="hidden" name="workspaceSlug" value={slug} />
             <input type="hidden" name="groupId" value={group.id} />
@@ -72,66 +97,36 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
           </form>
         )}
       </div>
-      {canEdit && open.length > 0 ? (
+      {showComposer && (
         <Composer
           workspaceSlug={slug}
           timezone={tz}
           channels={toComposerChannels(channels)}
           initial={initial}
         />
-      ) : (
-        <ReadOnlyGroup
-          posts={group.posts.map((p) => ({
-            ...p,
-            channel: channels.find((c) => c.id === p.channelId)?.name ?? 'Removed channel',
-            when: p.scheduledAt ? toWallTime(p.scheduledAt, tz).replace('T', ' ') : null,
-          }))}
-        />
+      )}
+      {delivery.length > 0 && (
+        <section aria-labelledby="delivery-heading" className="flex flex-col gap-3">
+          {showComposer && (
+            <h2 id="delivery-heading" className="font-medium">
+              Already sent or in progress
+            </h2>
+          )}
+          {!showComposer && (
+            <h2 id="delivery-heading" className="sr-only">
+              Channels
+            </h2>
+          )}
+          <DeliveryList
+            posts={delivery}
+            timezone={tz}
+            workspaceSlug={slug}
+            groupId={group.id}
+            canRetry={canEdit}
+            showText={!showComposer}
+          />
+        </section>
       )}
     </div>
-  );
-}
-
-function ReadOnlyGroup({
-  posts,
-}: {
-  posts: {
-    id: string;
-    channel: string;
-    status: string;
-    when: string | null;
-    externalUrl: string | null;
-    errorMessage: string | null;
-    items: string[];
-  }[];
-}) {
-  return (
-    <ul className="flex flex-col gap-4">
-      {posts.map((p) => (
-        <li key={p.id} className="flex flex-col gap-2 rounded-md border border-border p-3">
-          <p className="text-sm">
-            <span className="font-medium">{p.channel}</span>{' '}
-            <span className="text-muted">
-              · {p.status}
-              {p.when ? ` · ${p.when}` : ''}
-            </span>
-            {p.externalUrl && (
-              <>
-                {' · '}
-                <a className="text-sprout-600 underline" href={p.externalUrl}>
-                  View post
-                </a>
-              </>
-            )}
-          </p>
-          {p.errorMessage && <p className="text-sm text-danger">{p.errorMessage}</p>}
-          {p.items.map((body, i) => (
-            <p key={i} className="whitespace-pre-wrap rounded-sm bg-surface p-2 text-sm">
-              {body}
-            </p>
-          ))}
-        </li>
-      ))}
-    </ul>
   );
 }
