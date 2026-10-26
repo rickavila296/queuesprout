@@ -26,6 +26,8 @@ import {
   BLUESKY_APP_PASSWORD_PATTERN,
   ConnectError,
   DISCORD_WEBHOOK_URL_PATTERN,
+  normalizeTelegramChat,
+  TELEGRAM_BOT_TOKEN_PATTERN,
   normalizeMastodonInstance,
   oauthConnector,
   secretConnector,
@@ -247,6 +249,76 @@ export async function connectDiscordAction(
     if (error instanceof ForbiddenError) return fail(error.message);
     // Never pass the form data along: the webhook URL is a secret.
     return unexpected('connectDiscord', error);
+  }
+}
+
+const telegramSchema = z.object({
+  workspaceSlug: workspaceSlugSchema,
+  botToken: z
+    .string()
+    .trim()
+    .regex(TELEGRAM_BOT_TOKEN_PATTERN, 'Bot tokens look like 123456789:AAH…, from @BotFather.'),
+  chat: z
+    .string()
+    .trim()
+    .min(1, 'Enter the channel, like @mychannel.')
+    .max(100)
+    .refine((value) => normalizeTelegramChat(value) !== null, {
+      message: 'Enter the channel as @name, or its numeric id for a private channel.',
+    }),
+});
+
+/**
+ * Connects one Telegram channel or group through a bot the admin made with @BotFather
+ * and added to it as an admin. The token is checked with Telegram, then stored encrypted.
+ * Admins only.
+ */
+export async function connectTelegramAction(
+  _prev: FormState<{ name: string }>,
+  formData: FormData,
+): Promise<FormState<{ name: string }>> {
+  const parsed = telegramSchema.safeParse({
+    workspaceSlug: formData.get('workspaceSlug'),
+    botToken: formData.get('botToken'),
+    chat: formData.get('chat'),
+  });
+  if (!parsed.success) return invalid(parsed.error);
+  const { workspaceSlug, botToken, chat } = parsed.data;
+
+  const { ctx } = await requireWorkspace(workspaceSlug);
+  try {
+    assertRole(ctx, 'admin');
+    const keys = keyring();
+    if (!keys) return fail('Set TOKEN_ENCRYPTION_KEY in .env, then restart the app.');
+    const workspace = await dataAccess().withWorkspace(ctx, (tx) =>
+      getWorkspace(tx, ctx.workspaceId),
+    );
+    if (!workspace || workspace.isSandbox) {
+      return fail('Sandbox workspaces use demo channels only.');
+    }
+    const connect = secretConnector('telegram');
+    if (!connect) return fail('Telegram is not available.');
+
+    let account: ConnectedAccountInput;
+    try {
+      account = await connect({
+        identifier: chat,
+        secret: botToken,
+        signal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (error instanceof ConnectError) return fail(error.message);
+      throw error;
+    }
+
+    await saveConnectedAccount(ctx, keys, 'telegram', account);
+
+    revalidatePath(`/w/${workspaceSlug}`, 'layout');
+    return ok({ name: account.targets[0]?.name ?? account.displayName });
+  } catch (error) {
+    if (error instanceof ForbiddenError) return fail(error.message);
+    // Never pass the form data along: it holds the bot token.
+    return unexpected('connectTelegram', error);
   }
 }
 

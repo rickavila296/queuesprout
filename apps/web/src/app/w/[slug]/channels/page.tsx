@@ -13,6 +13,7 @@ import { BlueskyConnectForm } from './bluesky-connect-form';
 import { DiscordConnectForm } from './discord-connect-form';
 import { DemoChannelForm } from './demo-channel-form';
 import { MastodonConnectForm } from './mastodon-connect-form';
+import { TelegramConnectForm } from './telegram-connect-form';
 import { ProviderMark } from './provider-mark';
 
 export const metadata: Metadata = { title: 'Channels' };
@@ -110,6 +111,15 @@ export default async function ChannelsPage({
             <h2 className="font-medium">Connect a Discord channel</h2>
           </div>
           <DiscordConnectForm workspaceSlug={slug} />
+        </Card>
+      )}
+      {manage && workspace && !workspace.isSandbox && (
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <ProviderMark provider="telegram" />
+            <h2 className="font-medium">Connect a Telegram channel</h2>
+          </div>
+          <TelegramConnectForm workspaceSlug={slug} />
         </Card>
       )}
 

@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "result": {
+    "user": {
+      "id": 7000000001,
+      "is_bot": true,
+      "first_name": "QueueSprout Test",
+      "username": "queuesprout_test_bot"
+    },
+    "status": "administrator",
+    "can_be_edited": false,
+    "is_anonymous": false,
+    "can_manage_chat": true,
+    "can_delete_messages": true,
+    "can_post_messages": true,
+    "can_edit_messages": true,
+    "can_invite_users": true
+  }
+}

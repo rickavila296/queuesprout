@@ -52,3 +52,18 @@ export function retryAfterMs(headers: Headers, now: Date): number | undefined {
   const at = Number.isFinite(epoch) ? epoch * 1000 : Date.parse(reset);
   return Number.isNaN(at) ? undefined : Math.max(0, at - now.getTime());
 }
+
+/** Errors fetch raises before a request leaves the machine, so a retry cannot double-post. */
+const NOT_SENT = new Set(['ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT']);
+
+/** The system error code behind a failed fetch (ECONNRESET, ENOTFOUND…), if any. */
+export function networkErrorCode(error: unknown): string | undefined {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === 'string' ? cause.code : undefined;
+}
+
+/** True when the request never reached the platform, so retrying cannot post twice. */
+export function wasNeverSent(error: unknown): boolean {
+  const code = networkErrorCode(error);
+  return code !== undefined && NOT_SENT.has(code);
+}

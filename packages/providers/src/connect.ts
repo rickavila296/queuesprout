@@ -6,6 +6,7 @@
 import type { ProviderId } from '@queuesprout/shared';
 import { connectWithSecret as blueskyConnect } from './bluesky/auth';
 import { connectWithSecret as discordConnect } from './discord/auth';
+import { connectWithSecret as telegramConnect } from './telegram/auth';
 import {
   exchangeCode as mastodonExchange,
   getAuthUrl as mastodonAuthUrl,
@@ -34,6 +35,10 @@ export type {
 } from './contract';
 export { normalizeInstance as normalizeMastodonInstance } from './mastodon/http';
 export { WEBHOOK_URL_PATTERN as DISCORD_WEBHOOK_URL_PATTERN } from './discord/limits';
+export {
+  BOT_TOKEN_PATTERN as TELEGRAM_BOT_TOKEN_PATTERN,
+  normalizeChat as normalizeTelegramChat,
+} from './telegram/limits';
 export { APP_PASSWORD_PATTERN as BLUESKY_APP_PASSWORD_PATTERN } from './bluesky/auth';
 
 type SecretConnector = (ctx: SecretConnectContext) => Promise<ConnectedAccountInput>;
@@ -42,6 +47,7 @@ type SecretConnector = (ctx: SecretConnectContext) => Promise<ConnectedAccountIn
 const SECRET_CONNECTORS: Partial<Record<ProviderId, SecretConnector>> = {
   bluesky: blueskyConnect,
   discord: discordConnect,
+  telegram: telegramConnect,
 };
 
 export function secretConnector(provider: ProviderId): SecretConnector | null {

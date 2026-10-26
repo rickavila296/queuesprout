@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 42,
+    "sender_chat": {
+      "id": -1001000000002,
+      "title": "Acme Coffee News",
+      "username": "acmecoffee_news",
+      "type": "channel"
+    },
+    "chat": {
+      "id": -1001000000002,
+      "title": "Acme Coffee News",
+      "username": "acmecoffee_news",
+      "type": "channel"
+    },
+    "date": 1793000000,
+    "text": "Hello Telegram"
+  }
+}
