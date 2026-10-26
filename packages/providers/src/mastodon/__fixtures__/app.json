@@ -1,0 +1,10 @@
+{
+  "id": "563419",
+  "name": "QueueSprout",
+  "website": "https://queuesprout.com",
+  "scopes": ["read:accounts", "write:statuses", "write:media"],
+  "redirect_uris": ["http://localhost:3000/api/oauth/mastodon/callback"],
+  "vapid_key": "BCk-QqERU0q-CfYZjcuB6lnyyOYfJ2AifKqfeGIm7Z-HiTU5T9eTG5GxVA0_OH5mMlI4UkkDTpaZwozy0TzdZ2M=",
+  "client_id": "test-client-id",
+  "client_secret": "test-client-secret"
+}

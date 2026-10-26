@@ -33,3 +33,22 @@ export function isPublicHttpsUrl(value: string | URL): boolean {
   }
   return true;
 }
+
+/**
+ * Retry-After (seconds or an HTTP date), else a rate-limit reset time: ratelimit-reset
+ * (epoch seconds, Bluesky) or x-ratelimit-reset (an ISO date, Mastodon).
+ */
+export function retryAfterMs(headers: Headers, now: Date): number | undefined {
+  const retryAfter = headers.get('retry-after');
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+    const at = Date.parse(retryAfter);
+    if (!Number.isNaN(at)) return Math.max(0, at - now.getTime());
+  }
+  const reset = headers.get('ratelimit-reset') ?? headers.get('x-ratelimit-reset');
+  if (!reset) return undefined;
+  const epoch = Number(reset);
+  const at = Number.isFinite(epoch) ? epoch * 1000 : Date.parse(reset);
+  return Number.isNaN(at) ? undefined : Math.max(0, at - now.getTime());
+}

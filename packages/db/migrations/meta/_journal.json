@@ -50,6 +50,13 @@
       "when": 1792993795146,
       "tag": "0006_phase1_connect_account_service_url",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792997287339,
+      "tag": "0007_phase1_provider_app_functions",
+      "breakpoints": true
     }
   ]
 }

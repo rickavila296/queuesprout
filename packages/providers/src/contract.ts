@@ -141,6 +141,22 @@ export interface AuthContext {
   instanceUrl?: string;
 }
 
+/** For providers that register an OAuth app per server (Mastodon instances). */
+export interface AppRegistrationContext {
+  instanceUrl: string;
+  redirectUri: string;
+  /** Shown to the user on the server's consent screen. */
+  clientName: string;
+  website: string;
+  signal: AbortSignal;
+}
+
+/** apps/web encrypts clientSecret into provider_apps; it is never shown or logged. */
+export interface RegisteredApp {
+  clientId: string;
+  clientSecret: string;
+}
+
 /** Secrets returned here (PKCE verifier, DPoP key) are encrypted into oauth_sessions. */
 export interface AuthStart {
   url: string;
@@ -197,7 +213,8 @@ export interface ProviderDefinition<TSettings = Record<string, unknown>> {
 export interface ProviderAdapter<
   TSettings = Record<string, unknown>,
 > extends ProviderDefinition<TSettings> {
-  /** OAuth providers. */
+  /** OAuth providers. registerApp only where each server needs its own app. */
+  registerApp?(ctx: AppRegistrationContext): Promise<RegisteredApp>;
   getAuthUrl?(ctx: AuthContext): Promise<AuthStart>;
   exchangeCode?(ctx: CallbackContext): Promise<ConnectedAccountInput>;
   /** app_password and bot_token providers. */

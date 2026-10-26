@@ -5,6 +5,7 @@
 import type { ProviderId } from '@queuesprout/shared';
 import { getProviderDefinition } from './client';
 import { blueskyAdapter } from './bluesky';
+import { mastodonAdapter } from './mastodon';
 import type { ProviderAdapter } from './contract';
 import { createMockAdapter, type MockOptions } from './mock/mock-adapter';
 
@@ -18,6 +19,7 @@ export { redact } from './redact';
 /** Live adapters, added one per channel starting with the golden Bluesky adapter. */
 const LIVE_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
   bluesky: blueskyAdapter as ProviderAdapter,
+  mastodon: mastodonAdapter as ProviderAdapter,
 };
 
 export type AdapterResolution =
