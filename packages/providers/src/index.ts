@@ -4,6 +4,7 @@
  */
 import type { ProviderId } from '@queuesprout/shared';
 import { getProviderDefinition } from './client';
+import { blueskyAdapter } from './bluesky';
 import type { ProviderAdapter } from './contract';
 import { createMockAdapter, type MockOptions } from './mock/mock-adapter';
 
@@ -15,7 +16,9 @@ export { hasErrors, validateSettings, validateText } from './validate';
 export { redact } from './redact';
 
 /** Live adapters, added one per channel starting with the golden Bluesky adapter. */
-const LIVE_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {};
+const LIVE_ADAPTERS: Partial<Record<ProviderId, ProviderAdapter>> = {
+  bluesky: blueskyAdapter as ProviderAdapter,
+};
 
 export type AdapterResolution =
   { ok: true; adapter: ProviderAdapter; mock: boolean } | { ok: false; error: 'not_implemented' };

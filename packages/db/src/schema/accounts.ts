@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  check,
   foreignKey,
   index,
   jsonb,
@@ -58,6 +59,8 @@ export const connectedAccounts = pgTable(
     /** DID, member URN, bot id... */
     externalAccountId: text('external_account_id').notNull(),
     displayName: text('display_name').notNull(),
+    /** The account's own server (a Bluesky PDS, a Mastodon instance); null where fixed. */
+    serviceUrl: text('service_url'),
     status: accountStatus('status').notNull().default('active'),
     connectedBy: uuid('connected_by').references(() => profiles.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
@@ -71,6 +74,7 @@ export const connectedAccounts = pgTable(
     ),
     // Target of composite foreign keys that keep children in their parent's workspace.
     unique('connected_accounts_id_workspace_key').on(t.id, t.workspaceId),
+    check('connected_accounts_service_url_https', sql`${t.serviceUrl} ~ '^https://'`),
   ],
 );
 

@@ -31,7 +31,11 @@ export async function refreshExpiringTokens(deps: PipelineDeps): Promise<Refresh
         keyring: deps.keyring,
         accountId: account.accountId,
         account,
-        refresh: (creds) => adapter.refreshToken(creds, AbortSignal.timeout(30_000)),
+        refresh: (creds) =>
+          adapter.refreshToken(creds, AbortSignal.timeout(30_000), {
+            externalId: account.externalAccountId,
+            serviceUrl: account.serviceUrl,
+          }),
         now: deps.now,
         skewMs: REFRESH_AHEAD_MS,
       });

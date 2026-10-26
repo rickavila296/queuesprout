@@ -80,6 +80,7 @@ export interface AccountToRefresh {
   workspaceId: string;
   provider: (typeof connectedAccounts.$inferSelect)['provider'];
   externalAccountId: string;
+  serviceUrl: string | null;
   workspaceIsSandbox: boolean;
 }
 
@@ -95,6 +96,7 @@ export async function listAccountsToRefresh(
       workspaceId: connectedAccounts.workspaceId,
       provider: connectedAccounts.provider,
       externalAccountId: connectedAccounts.externalAccountId,
+      serviceUrl: connectedAccounts.serviceUrl,
       workspaceIsSandbox: workspaces.isSandbox,
     })
     .from(accountCredentials)

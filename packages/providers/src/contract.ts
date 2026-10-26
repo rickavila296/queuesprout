@@ -32,6 +32,11 @@ export interface PostItem {
   kind: PostItemKind;
   body: string;
   mediaIds: string[];
+  /**
+   * When the item was stored. Stable across retries, so adapters can derive an
+   * idempotency key from it (Bluesky's record key). The worker always sets it.
+   */
+  createdAt?: Date;
 }
 
 export interface ChannelPost<TSettings = Record<string, unknown>> {
@@ -75,6 +80,14 @@ export interface MediaResolver {
   getInfo(mediaId: string): Promise<MediaInfo>;
 }
 
+/** The connected login a step publishes as. */
+export interface AccountRef {
+  /** The platform's account id (Bluesky DID, Mastodon account id). */
+  externalId: string;
+  /** The account's own server when it has one (Bluesky PDS, Mastodon instance). */
+  serviceUrl: string | null;
+}
+
 export interface PublishContext<TSettings = Record<string, unknown>> {
   post: ChannelPost<TSettings>;
   /** The item this step works on. */
@@ -86,6 +99,7 @@ export interface PublishContext<TSettings = Record<string, unknown>> {
   /** What earlier steps already did for this item. Never create a container when this has one. */
   checkpoint: PublishCheckpoint | null;
   creds: AccountCredentials;
+  account: AccountRef;
   /** Target-scoped token, e.g. a Facebook Page token. */
   channelCreds: ChannelCredentials | null;
   /** The channel's target on the platform (page id, server channel id, chat id). */
@@ -111,6 +125,8 @@ export interface Target {
 export interface ConnectedAccountInput {
   externalAccountId: string;
   displayName: string;
+  /** The account's own server, stored on the account (Bluesky PDS). */
+  serviceUrl?: string | null;
   creds: AccountCredentials;
   /** Targets known at connect time; others come from listTargets(). */
   targets: Target[];
@@ -143,6 +159,20 @@ export interface CallbackContext {
   signal: AbortSignal;
 }
 
+/**
+ * Thrown by connect calls (exchangeCode, connectWithSecret) with a message that is safe
+ * to show the user. Never include the secret the user typed.
+ */
+export class ConnectError extends Error {
+  constructor(
+    public readonly code: 'invalid_credentials' | 'rate_limited' | 'unavailable' | 'rejected',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ConnectError';
+  }
+}
+
 /** For app_password and bot_token providers: the user pastes a secret instead of an OAuth hop. */
 export interface SecretConnectContext {
   identifier: string;
@@ -173,8 +203,16 @@ export interface ProviderAdapter<
   /** app_password and bot_token providers. */
   connectWithSecret?(ctx: SecretConnectContext): Promise<ConnectedAccountInput>;
   /** Throw InvalidGrantError (from shared) when the grant is revoked. Worker only. */
-  refreshToken(creds: AccountCredentials, signal: AbortSignal): Promise<AccountCredentials>;
-  listTargets(creds: AccountCredentials, signal: AbortSignal): Promise<Target[]>;
+  refreshToken(
+    creds: AccountCredentials,
+    signal: AbortSignal,
+    account: AccountRef,
+  ): Promise<AccountCredentials>;
+  listTargets(
+    creds: AccountCredentials,
+    signal: AbortSignal,
+    account: AccountRef,
+  ): Promise<Target[]>;
 
   /** One bounded step (< 60 s): returns done, pending or error, never throws. Worker only. */
   publish(ctx: PublishContext<TSettings>): Promise<PublishStep>;

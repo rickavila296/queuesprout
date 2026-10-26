@@ -76,14 +76,21 @@ export interface StepWork {
     position: number;
     kind: 'post' | 'reply' | 'first_comment';
     body: string;
+    createdAt: Date;
   }>;
-  item: { id: string; position: number; kind: 'post' | 'reply' | 'first_comment'; body: string };
+  item: {
+    id: string;
+    position: number;
+    kind: 'post' | 'reply' | 'first_comment';
+    body: string;
+    createdAt: Date;
+  };
   parent: ItemRefRow | null;
   root: ItemRefRow | null;
   checkpoint: PublishCheckpoint | null;
   retriesSoFar: number;
   channel: { id: string; targetType: string; externalTargetId: string };
-  account: { id: string; externalAccountId: string };
+  account: { id: string; externalAccountId: string; serviceUrl: string | null };
   attemptId: string;
 }
 
@@ -230,8 +237,20 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
         workspaceIsSandbox: row.workspaceIsSandbox,
         provider: channel.provider,
         settings: { ...channel.defaultSettings, ...post.settings },
-        items: items.map((i) => ({ id: i.id, position: i.position, kind: i.kind, body: i.body })),
-        item: { id: next.id, position: next.position, kind: next.kind, body: next.body },
+        items: items.map((i) => ({
+          id: i.id,
+          position: i.position,
+          kind: i.kind,
+          body: i.body,
+          createdAt: i.createdAt,
+        })),
+        item: {
+          id: next.id,
+          position: next.position,
+          kind: next.kind,
+          body: next.body,
+          createdAt: next.createdAt,
+        },
         parent: previous ? toRef(previous) : null,
         root: first && first.id !== next.id ? toRef(first) : null,
         checkpoint,
@@ -241,7 +260,11 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
           targetType: channel.targetType,
           externalTargetId: channel.externalTargetId,
         },
-        account: { id: account.id, externalAccountId: account.externalAccountId },
+        account: {
+          id: account.id,
+          externalAccountId: account.externalAccountId,
+          serviceUrl: account.serviceUrl,
+        },
         attemptId: attempt.id,
       },
     };

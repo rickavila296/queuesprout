@@ -1,0 +1,30 @@
+{
+  "did": "did:plc:qs7test4fixture2acct",
+  "handle": "queuesprout-test.bsky.social",
+  "email": "redacted@example.com",
+  "emailConfirmed": true,
+  "emailAuthFactor": false,
+  "accessJwt": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJFUzI1NksifQ.eyJzY29wZSI6ImNvbS5hdHByb3RvLmFwcFBhc3MiLCJzdWIiOiJkaWQ6cGxjOnFzN3Rlc3Q0Zml4dHVyZTJhY2N0IiwiaWF0IjoxNzkzMDE2MDAwLCJleHAiOjE3OTMwMjMyMDAsImF1ZCI6ImRpZDp3ZWI6cGRzLnRlc3QifQ.fake-signature-not-a-real-token",
+  "refreshJwt": "eyJ0eXAiOiJhdCtqd3QiLCJhbGciOiJFUzI1NksifQ.eyJzY29wZSI6ImNvbS5hdHByb3RvLnJlZnJlc2giLCJzdWIiOiJkaWQ6cGxjOnFzN3Rlc3Q0Zml4dHVyZTJhY2N0IiwiYXVkIjoiZGlkOndlYjpic2t5LnNvY2lhbCIsImp0aSI6ImZpeHR1cmUtanRpIiwiaWF0IjoxNzkzMDE2MDAwLCJleHAiOjE4MDA3OTIwMDB9.fake-signature-not-a-real-token",
+  "didDoc": {
+    "@context": ["https://www.w3.org/ns/did/v1"],
+    "id": "did:plc:qs7test4fixture2acct",
+    "alsoKnownAs": ["at://queuesprout-test.bsky.social"],
+    "verificationMethod": [
+      {
+        "id": "did:plc:qs7test4fixture2acct#atproto",
+        "type": "Multikey",
+        "controller": "did:plc:qs7test4fixture2acct",
+        "publicKeyMultibase": "zQ3shFixtureKeyNotReal"
+      }
+    ],
+    "service": [
+      {
+        "id": "#atproto_pds",
+        "type": "AtprotoPersonalDataServer",
+        "serviceEndpoint": "https://pds.test"
+      }
+    ]
+  },
+  "active": true
+}

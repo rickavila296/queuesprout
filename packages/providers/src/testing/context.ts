@@ -1,5 +1,5 @@
 import type { ProviderId, PublishCheckpoint } from '@queuesprout/shared';
-import type { ChannelPost, ItemRef, PostItem, PublishContext } from '../contract';
+import type { AccountRef, ChannelPost, ItemRef, PostItem, PublishContext } from '../contract';
 
 export const TEST_NOW = new Date('2026-10-25T12:00:00.000Z');
 
@@ -15,6 +15,7 @@ export interface ContextInput<TSettings> {
   root?: ItemRef | null;
   signal?: AbortSignal;
   now?: () => Date;
+  account?: AccountRef;
 }
 
 /** Builds a PublishContext with fake credentials and no media. */
@@ -28,6 +29,7 @@ export function buildPublishContext<TSettings = Record<string, unknown>>(
     kind: position === 0 ? 'post' : 'reply',
     body,
     mediaIds: [],
+    createdAt: new Date(TEST_NOW.getTime() - 86_400_000 + position * 1000),
   }));
   const post: ChannelPost<TSettings> = {
     id: 'post-1',
@@ -50,6 +52,7 @@ export function buildPublishContext<TSettings = Record<string, unknown>>(
       expiresAt: new Date(TEST_NOW.getTime() + 3_600_000),
       scopes: [],
     },
+    account: input.account ?? { externalId: 'did:plc:test', serviceUrl: 'https://pds.test' },
     channelCreds: null,
     target: { type: 'profile', externalId: 'did:plc:test' },
     media: {

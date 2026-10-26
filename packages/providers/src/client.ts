@@ -4,6 +4,7 @@
  */
 import type { ProviderId } from '@queuesprout/shared';
 import type { ProviderDefinition } from './contract';
+import { blueskyDefinition } from './bluesky/validate';
 import { BASE_DEFINITIONS } from './definitions';
 
 export type {
@@ -17,10 +18,14 @@ export type {
 } from './contract';
 export { pinterestSettingsSchema } from './definitions';
 export { hasErrors } from './validate';
+export { blueskySettingsSchema } from './bluesky/settings';
 export { MOCK_FAILURES, demoAccount } from './mock/mock-adapter';
 
 /** Real adapters register their definitions here as they land; the rest use the base ones. */
-const DEFINITIONS: Record<ProviderId, ProviderDefinition> = { ...BASE_DEFINITIONS };
+const DEFINITIONS: Record<ProviderId, ProviderDefinition> = {
+  ...BASE_DEFINITIONS,
+  bluesky: blueskyDefinition as ProviderDefinition,
+};
 
 export function getProviderDefinition(id: ProviderId): ProviderDefinition {
   return DEFINITIONS[id];

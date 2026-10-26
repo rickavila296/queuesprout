@@ -36,6 +36,20 @@
       "when": 1792967178833,
       "tag": "0004_phase1_base_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792993789830,
+      "tag": "0005_phase1_account_service_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792993795146,
+      "tag": "0006_phase1_connect_account_service_url",
+      "breakpoints": true
     }
   ]
 }

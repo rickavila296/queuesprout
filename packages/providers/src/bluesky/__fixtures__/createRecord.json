@@ -1,0 +1,9 @@
+{
+  "uri": "at://did:plc:qs7test4fixture2acct/app.bsky.feed.post/RKEY",
+  "cid": "bafyreifixturecidforcreaterecord0000000000000000000000",
+  "commit": {
+    "cid": "bafyreifixturecommitcid000000000000000000000000000000",
+    "rev": "3lfixturerev22"
+  },
+  "validationStatus": "valid"
+}
