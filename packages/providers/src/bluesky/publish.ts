@@ -2,14 +2,16 @@ import type { PublishStep } from '@queuesprout/shared';
 import type { ItemRef, PublishContext } from '../contract';
 import { toStepError, XrpcError } from './errors';
 import { buildFacets } from './facets';
-import { ENTRYWAY_URL, POST_COLLECTION, POST_WEB_URL } from './limits';
+import { ENTRYWAY_URL, IMAGE_SPEC, POST_COLLECTION, POST_WEB_URL } from './limits';
 import type { BlueskySettings } from './settings';
 import { validateBluesky } from './validate';
 import { xrpc } from './xrpc';
 
 /**
- * One step per item: create the post record (with a reply ref for thread items) and
- * return done. Bluesky has no async processing for text, so this never returns pending.
+ * One step per item: upload its images as blobs, create the post record (with a reply
+ * ref for thread items) and return done. Bluesky has no async processing, so this never
+ * returns pending. Blobs nothing references are garbage-collected by the PDS, so a retry
+ * that uploads them again leaves nothing behind.
  *
  * Never double-post: the record key is derived from the item (its id and stored time),
  * so a retry after a timeout tries to create the same record again. If it exists, the
@@ -56,6 +58,42 @@ function strongRef(ref: ItemRef | null): StrongRef | null {
 
 export const postUrl = (did: string, rkey: string) => `${POST_WEB_URL}/${did}/post/${rkey}`;
 
+type StepError = Extract<PublishStep, { kind: 'error' }>;
+type Call = { service: string; token: string; signal: AbortSignal; now: () => Date };
+
+/** app.bsky.embed.images for the item's attachments, or an error to end the step with. */
+async function uploadImages(
+  ctx: PublishContext<BlueskySettings>,
+  call: Call,
+): Promise<{ embed: Record<string, unknown> | undefined } | { error: StepError }> {
+  const images: Record<string, unknown>[] = [];
+  for (const [i, mediaId] of ctx.item.mediaIds.entries()) {
+    const got = await ctx.media.getFile(mediaId, IMAGE_SPEC);
+    if (!got.ok) {
+      return {
+        error: {
+          kind: 'error',
+          errorKind: got.retryable ? 'transient' : 'validation',
+          message: got.message,
+        },
+      };
+    }
+    const uploaded = await xrpc<{ blob: Record<string, unknown> }>('POST', {
+      ...call,
+      nsid: 'com.atproto.repo.uploadBlob',
+      blob: { bytes: got.file.bytes, contentType: got.file.mime },
+    });
+    images.push({
+      alt: ctx.item.altTexts?.[i] ?? '',
+      image: uploaded.blob,
+      aspectRatio: { width: got.file.width, height: got.file.height },
+    });
+  }
+  return {
+    embed: images.length > 0 ? { $type: 'app.bsky.embed.images', images } : undefined,
+  };
+}
+
 export async function publish(ctx: PublishContext<BlueskySettings>): Promise<PublishStep> {
   // Issues about other items fail their own step, not this one.
   const blocking = validateBluesky(ctx.post).find(
@@ -85,6 +123,8 @@ export async function publish(ctx: PublishContext<BlueskySettings>): Promise<Pub
   const call = { service, token: ctx.creds.accessToken, signal: ctx.signal, now: ctx.now };
 
   try {
+    const uploaded = await uploadImages(ctx, call);
+    if ('error' in uploaded) return uploaded.error;
     const facets = await buildFacets(ctx.item.body, async (handle) => {
       try {
         const res = await xrpc<{ did: string }>('GET', {
@@ -103,6 +143,7 @@ export async function publish(ctx: PublishContext<BlueskySettings>): Promise<Pub
       createdAt: ctx.now().toISOString(),
       ...(facets.length > 0 && { facets }),
       ...(reply && { reply }),
+      ...(uploaded.embed && { embed: uploaded.embed }),
       ...(ctx.post.settings.langs?.length && { langs: ctx.post.settings.langs }),
     };
 
@@ -134,7 +175,7 @@ export async function publish(ctx: PublishContext<BlueskySettings>): Promise<Pub
 }
 
 async function findExisting(
-  call: { service: string; token: string; signal: AbortSignal; now: () => Date },
+  call: Call,
   repo: string,
   rkey: string,
   text: string,

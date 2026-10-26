@@ -59,12 +59,26 @@ async function main(): Promise<void> {
     log.debug('heartbeat');
   });
 
+  const storage =
+    env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY
+      ? createStorage({
+          endpoint: env.S3_ENDPOINT,
+          region: env.S3_REGION,
+          bucket: env.S3_BUCKET,
+          accessKeyId: env.S3_ACCESS_KEY_ID,
+          secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+          forcePathStyle: env.S3_FORCE_PATH_STYLE,
+        })
+      : null;
+  if (storage) await checkBucket(storage);
+
   const deps: PipelineDeps = {
     db,
     keyring: env.TOKEN_ENCRYPTION_KEY,
     pickAdapter: createAdapterPicker(env),
     now: () => new Date(),
     log,
+    storage,
   };
 
   // stately: at most one queued and one active step per post (singletonKey = post id).
@@ -136,16 +150,7 @@ async function main(): Promise<void> {
   }, DISPATCH_INTERVAL_MS);
 
   let prober: NodeJS.Timeout | undefined;
-  if (env.S3_ENDPOINT && env.S3_BUCKET && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY) {
-    const storage = createStorage({
-      endpoint: env.S3_ENDPOINT,
-      region: env.S3_REGION,
-      bucket: env.S3_BUCKET,
-      accessKeyId: env.S3_ACCESS_KEY_ID,
-      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
-      forcePathStyle: env.S3_FORCE_PATH_STYLE,
-    });
-    await checkBucket(storage);
+  if (storage) {
     let probing = false;
     prober = setInterval(() => {
       if (probing) return;
@@ -158,7 +163,7 @@ async function main(): Promise<void> {
         });
     }, PROBE_INTERVAL_MS);
   } else {
-    log.warn('S3_* is not set: uploaded media stays at "Checking"');
+    log.warn('S3_* is not set: uploads stay at "Checking" and posts with images fail');
   }
 
   log.info({ publishMode: env.PUBLISH_MODE }, 'worker started');

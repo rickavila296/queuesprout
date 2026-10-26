@@ -1,5 +1,5 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
-import type { ImageMimeType } from '@queuesprout/shared';
+import type { ImageMimeType, MediaStatus } from '@queuesprout/shared';
 import type { Database } from '../client';
 import { mediaAssets } from '../schema/media';
 
@@ -70,4 +70,39 @@ export async function deferMediaProbe(db: Database, mediaId: string): Promise<vo
     .update(mediaAssets)
     .set({ updatedAt: sql`now()` })
     .where(and(eq(mediaAssets.id, mediaId), eq(mediaAssets.status, 'processing')));
+}
+
+export interface MediaForPublish {
+  id: string;
+  storageKey: string;
+  status: MediaStatus;
+  mime: string;
+  bytes: number;
+  width: number | null;
+  height: number | null;
+}
+
+/**
+ * A file a publish step attaches, scoped to the post's workspace. Soft-deleted files still
+ * resolve: deleting from the library must not break a post that was already scheduled.
+ */
+export async function getMediaForPublish(
+  db: Database,
+  workspaceId: string,
+  mediaId: string,
+): Promise<MediaForPublish | null> {
+  const [row] = await db
+    .select({
+      id: mediaAssets.id,
+      storageKey: mediaAssets.storageKey,
+      status: mediaAssets.status,
+      mime: mediaAssets.mime,
+      bytes: mediaAssets.bytes,
+      width: mediaAssets.width,
+      height: mediaAssets.height,
+    })
+    .from(mediaAssets)
+    .where(and(eq(mediaAssets.workspaceId, workspaceId), eq(mediaAssets.id, mediaId)))
+    .limit(1);
+  return row ?? null;
 }

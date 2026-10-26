@@ -10,5 +10,17 @@ export const MAX_TEXT_BYTES = 3000;
 export const MAX_TAG_GRAPHEMES = 64;
 export const MAX_LANGS = 3;
 
+/**
+ * app.bsky.embed.images: up to 4 images of at most 1,000,000 bytes each. The app scales
+ * images to 2000 px on the long side, so larger ones only cost upload time.
+ */
+export const IMAGE_SPEC = {
+  maxBytes: 1_000_000,
+  maxEdgePx: 2000,
+  mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+} as const;
+/** Bluesky's alt text limit, in graphemes. */
+export const MAX_ALT_GRAPHEMES = 2000;
+
 export const POST_COLLECTION = 'app.bsky.feed.post';
 export const POST_WEB_URL = 'https://bsky.app/profile';

@@ -34,6 +34,8 @@ export interface PostItem {
   kind: PostItemKind;
   body: string;
   mediaIds: string[];
+  /** Alt text for each of mediaIds, same order. Missing entries mean none. */
+  altTexts?: string[];
   /**
    * When the item was stored. Stable across retries, so adapters can derive an
    * idempotency key from it (Bluesky's record key). The worker always sets it.
@@ -76,10 +78,37 @@ export interface ItemRef {
   meta: Record<string, unknown>;
 }
 
+/** What a platform accepts for one image upload. */
+export interface MediaFileSpec {
+  maxBytes: number;
+  /** Longest side the platform keeps; larger images are scaled down first. */
+  maxEdgePx?: number;
+  /** Accepted types, preferred first. Anything else is re-encoded as JPEG. */
+  mimeTypes: readonly string[];
+}
+
+export interface MediaFile {
+  bytes: Uint8Array;
+  mime: string;
+  width: number;
+  height: number;
+}
+
+/** Never thrown: adapters map it to a step error themselves. */
+export type MediaFileResult =
+  | { ok: true; file: MediaFile }
+  /** retryable: storage hiccup or the file is still being checked; otherwise it is unusable. */
+  | { ok: false; retryable: boolean; message: string };
+
 /** Media access for adapters (Phase 2). URLs are presigned GETs valid for 2 hours. */
 export interface MediaResolver {
   getUrl(mediaId: string): Promise<string>;
   getInfo(mediaId: string): Promise<MediaInfo>;
+  /**
+   * The file's bytes, fitted to the spec by the worker: rotated upright, scaled and
+   * re-encoded when needed, with metadata such as GPS stripped.
+   */
+  getFile(mediaId: string, spec: MediaFileSpec): Promise<MediaFileResult>;
 }
 
 /** The connected login a step publishes as. */
