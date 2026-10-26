@@ -110,3 +110,30 @@ export function addDays(day: string, n: number): string {
   const date = new Date(Date.UTC(y, m - 1, d + n));
   return date.toISOString().slice(0, 10);
 }
+
+/** ISO weekday of "YYYY-MM-DD": 0 is Monday, 6 is Sunday. */
+export function weekdayIndex(day: string): number {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+}
+
+/** The Monday on or before "YYYY-MM-DD". */
+export function startOfWeek(day: string): string {
+  return addDays(day, -weekdayIndex(day));
+}
+
+/** The first day shown in a month grid: the Monday on or before the 1st. Six weeks follow. */
+export function startOfMonthGrid(day: string): string {
+  return startOfWeek(`${day.slice(0, 7)}-01`);
+}
+
+/** "YYYY-MM-DD" in the next (or previous, n < 0) month, clamped to that month's length. */
+export function addMonths(day: string, n: number): string {
+  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+  const first = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  first.setUTCDate(Math.min(d, last));
+  return first.toISOString().slice(0, 10);
+}
+
+export const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;

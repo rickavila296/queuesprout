@@ -316,6 +316,7 @@ export interface CalendarPost {
   /** Item 0's text. */
   body: string;
   itemCount: number;
+  version: number;
 }
 
 const calendarColumns = {
@@ -331,6 +332,7 @@ const calendarColumns = {
   provider: channels.provider,
   body: sql<string>`coalesce((select pi.body from post_items pi where pi.post_id = ${posts.id} and pi.position = 0), '')`,
   itemCount: sql<number>`(select count(*)::int from post_items pi where pi.post_id = ${posts.id})`,
+  version: posts.version,
 };
 
 /** Posts scheduled in [from, to), oldest first. */
@@ -376,4 +378,59 @@ export async function listUnscheduledDrafts(
     )
     .orderBy(sql`${posts.updatedAt} desc`)
     .limit(limit);
+}
+
+export type ReschedulePostResult =
+  | { ok: true; version: number }
+  | { ok: false; error: 'not_found' | 'conflict' | 'locked' | 'past' };
+
+/**
+ * Moves one post to a new time (calendar drag, "Move to…", undo). Only drafts and
+ * scheduled posts move, and only from the version the caller saw, so a drag cannot
+ * overwrite a newer edit from another tab or a post the worker has claimed. A scheduled
+ * post cannot move before earliest (drafts can: they never publish on their own).
+ */
+export async function reschedulePost(
+  tx: Tx,
+  input: {
+    workspaceId: string;
+    postId: string;
+    version: number;
+    scheduledAt: Date;
+    earliest: Date;
+  },
+): Promise<ReschedulePostResult> {
+  const tooEarly = input.scheduledAt.getTime() < input.earliest.getTime();
+  const moved = await tx
+    .update(posts)
+    .set({ scheduledAt: input.scheduledAt })
+    .where(
+      and(
+        eq(posts.id, input.postId),
+        eq(posts.workspaceId, input.workspaceId),
+        eq(posts.version, input.version),
+        isNull(posts.deletedAt),
+        inArray(posts.status, tooEarly ? ['draft'] : ['draft', 'scheduled']),
+      ),
+    )
+    .returning({ version: posts.version });
+  const row = moved[0];
+  if (row) return { ok: true, version: row.version };
+
+  const current = await tx
+    .select({ status: posts.status })
+    .from(posts)
+    .where(
+      and(
+        eq(posts.id, input.postId),
+        eq(posts.workspaceId, input.workspaceId),
+        isNull(posts.deletedAt),
+      ),
+    )
+    .limit(1);
+  const status = current[0]?.status;
+  if (!status) return { ok: false, error: 'not_found' };
+  if (status !== 'draft' && status !== 'scheduled') return { ok: false, error: 'locked' };
+  if (status === 'scheduled' && tooEarly) return { ok: false, error: 'past' };
+  return { ok: false, error: 'conflict' };
 }

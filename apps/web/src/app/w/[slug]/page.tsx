@@ -1,4 +1,4 @@
-import { CalendarDays, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { hasRole } from '@queuesprout/core';
@@ -7,61 +7,94 @@ import {
   listCalendarPosts,
   listChannels,
   listUnscheduledDrafts,
-  type CalendarPost,
 } from '@queuesprout/db';
-import { addDays, startOfWallDay, toWallDate, toWallTime } from '@queuesprout/shared';
+import {
+  addDays,
+  addMonths,
+  DAY_PATTERN,
+  startOfMonthGrid,
+  startOfWallDay,
+  startOfWeek,
+  toWallDate,
+  toWallTime,
+} from '@queuesprout/shared';
 import { buttonVariants, cn } from '@queuesprout/ui';
-import { PostStatusDot } from '@/components/post-status';
+import { CalendarGrid, type GridPost } from '@/components/calendar/calendar-grid';
+import { ListView } from '@/components/calendar/list-view';
 import { dataAccess } from '@/lib/db';
-import { providerLabel } from '@/lib/providers';
 import { requireWorkspace } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Calendar' };
 
-/** The list view shows the past week and the next eight weeks. */
-const PAST_DAYS = 7;
-const FUTURE_DAYS = 56;
+const VIEWS = ['week', 'month', 'list'] as const;
+type View = (typeof VIEWS)[number];
 
-const dayHeading = (day: string, today: string) => {
-  if (day === today) return 'Today';
-  if (day === addDays(today, 1)) return 'Tomorrow';
-  if (day === addDays(today, -1)) return 'Yesterday';
-  const [y, m, d] = day.split('-').map(Number) as [number, number, number];
-  return new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(Date.UTC(y, m - 1, d)));
-};
+/** The list view shows the week before the anchor day and the eight weeks after it. */
+const LIST_PAST_DAYS = 7;
+const LIST_FUTURE_DAYS = 56;
 
-export default async function CalendarPage({ params }: PageProps<'/w/[slug]'>) {
+/** First and last (exclusive) day of the period a view shows around `anchor`. */
+function period(view: View, anchor: string): { first: string; end: string } {
+  if (view === 'week') {
+    const first = startOfWeek(anchor);
+    return { first, end: addDays(first, 7) };
+  }
+  if (view === 'month') {
+    const first = startOfMonthGrid(anchor);
+    return { first, end: addDays(first, 42) };
+  }
+  return { first: addDays(anchor, -LIST_PAST_DAYS), end: addDays(anchor, LIST_FUTURE_DAYS) };
+}
+
+function step(view: View, anchor: string, direction: 1 | -1): string {
+  if (view === 'month') return addMonths(anchor, direction);
+  return addDays(anchor, direction * (view === 'week' ? 7 : LIST_FUTURE_DAYS));
+}
+
+function title(view: View, anchor: string, first: string, end: string): string {
+  const fmt = (day: string, opts: Intl.DateTimeFormatOptions) => {
+    const [y, m, d] = day.split('-').map(Number) as [number, number, number];
+    return new Intl.DateTimeFormat('en-US', { ...opts, timeZone: 'UTC' }).format(
+      new Date(Date.UTC(y, m - 1, d)),
+    );
+  };
+  if (view === 'month') return fmt(anchor, { month: 'long', year: 'numeric' });
+  const last = addDays(end, -1);
+  return `${fmt(first, { month: 'short', day: 'numeric' })} – ${fmt(last, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+export default async function CalendarPage({ params, searchParams }: PageProps<'/w/[slug]'>) {
   const { slug } = await params;
+  const query = await searchParams;
   const { ctx } = await requireWorkspace(slug);
   const canEdit = hasRole(ctx.role, 'editor');
+  const view: View = VIEWS.find((v) => v === query.view) ?? 'week';
 
   const data = await dataAccess().withWorkspace(ctx, async (tx) => {
     const workspace = await getWorkspace(tx, ctx.workspaceId);
     const tz = workspace?.timezone ?? 'UTC';
     const today = toWallDate(new Date(), tz);
-    const from = startOfWallDay(addDays(today, -PAST_DAYS), tz) ?? new Date();
-    const to = startOfWallDay(addDays(today, FUTURE_DAYS), tz) ?? new Date();
+    const anchor =
+      typeof query.date === 'string' &&
+      DAY_PATTERN.test(query.date) &&
+      startOfWallDay(query.date, tz)
+        ? query.date
+        : today;
+    const { first, end } = period(view, anchor);
+    const from = startOfWallDay(first, tz) ?? new Date();
+    const to = startOfWallDay(end, tz) ?? new Date();
     return {
       tz,
       today,
+      anchor,
+      first,
+      end,
       channelCount: (await listChannels(tx, ctx.workspaceId)).length,
-      posts: await listCalendarPosts(tx, ctx.workspaceId, { from, to }),
-      drafts: await listUnscheduledDrafts(tx, ctx.workspaceId),
+      posts: await listCalendarPosts(tx, ctx.workspaceId, { from, to, limit: 1000 }),
+      drafts: view === 'list' ? await listUnscheduledDrafts(tx, ctx.workspaceId) : [],
     };
   });
-  const { tz, today, posts, drafts } = data;
-
-  const days = new Map<string, CalendarPost[]>();
-  for (const p of posts) {
-    if (!p.scheduledAt) continue;
-    const day = toWallDate(p.scheduledAt, tz);
-    days.set(day, [...(days.get(day) ?? []), p]);
-  }
+  const { tz, today, anchor, first, end, posts, drafts } = data;
 
   if (data.channelCount === 0 && posts.length === 0 && drafts.length === 0) {
     return (
@@ -79,102 +112,98 @@ export default async function CalendarPage({ params }: PageProps<'/w/[slug]'>) {
     );
   }
 
+  const href = (v: View, date?: string) =>
+    `/w/${slug}?view=${v}${date && date !== today ? `&date=${date}` : ''}` as '/';
+  const days = Array.from({ length: view === 'week' ? 7 : 42 }, (_, i) => addDays(first, i));
+  const gridPosts: GridPost[] = posts.flatMap((p) =>
+    p.scheduledAt
+      ? [
+          {
+            id: p.id,
+            groupId: p.groupId,
+            status: p.status,
+            day: toWallDate(p.scheduledAt, tz),
+            time: toWallTime(p.scheduledAt, tz).slice(11),
+            channelName: p.channelName,
+            provider: p.provider,
+            body: p.body,
+            version: p.version,
+          },
+        ]
+      : [],
+  );
+
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Calendar</h1>
-          <p className="text-sm text-muted">Times in {tz}</p>
-        </div>
-        {canEdit && (
-          <Link href={`/w/${slug}/compose` as '/'} className={buttonVariants()}>
-            <Plus className="size-4" aria-hidden="true" />
-            New post
+    <div className={cn('mx-auto flex flex-col gap-4', view === 'list' ? 'max-w-3xl' : 'max-w-6xl')}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="mr-2 text-lg font-semibold sm:text-xl">
+            {title(view, anchor, first, end)}
+          </h1>
+          <Link
+            href={href(view, step(view, anchor, -1))}
+            className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+            aria-label="Previous"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
           </Link>
-        )}
+          <Link href={href(view)} className={buttonVariants({ variant: 'secondary', size: 'sm' })}>
+            Today
+          </Link>
+          <Link
+            href={href(view, step(view, anchor, 1))}
+            className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+            aria-label="Next"
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <nav aria-label="Calendar view" className="flex rounded-sm border border-border p-0.5">
+            {VIEWS.map((v) => (
+              <Link
+                key={v}
+                href={href(v, anchor)}
+                aria-current={v === view ? 'page' : undefined}
+                className={cn(
+                  'rounded-sm px-2.5 py-1 text-sm capitalize',
+                  v === view
+                    ? 'bg-sprout-100 font-medium text-sprout-600'
+                    : 'text-muted hover:text-text',
+                )}
+              >
+                {v}
+              </Link>
+            ))}
+          </nav>
+          {canEdit && (
+            <Link href={`/w/${slug}/compose` as '/'} className={buttonVariants()}>
+              <Plus className="size-4" aria-hidden="true" />
+              New post
+            </Link>
+          )}
+        </div>
       </div>
 
-      {drafts.length > 0 && (
-        <DaySection heading="Drafts without a time">
-          {drafts.map((p) => (
-            <PostRow key={p.id} post={p} slug={slug} time={null} />
-          ))}
-        </DaySection>
-      )}
-
-      {days.size === 0 ? (
-        <p className="text-muted">Nothing scheduled in the next eight weeks.</p>
+      {view === 'list' ? (
+        <>
+          <p className="text-sm text-muted">Times in {tz}</p>
+          <ListView slug={slug} timezone={tz} today={today} posts={posts} drafts={drafts} />
+        </>
       ) : (
-        [...days.entries()].map(([day, list]) => (
-          <DaySection
-            key={day}
-            heading={dayHeading(day, today)}
-            muted={day < today}
-            current={day === today}
-          >
-            {list.map((p) => (
-              <PostRow
-                key={p.id}
-                post={p}
-                slug={slug}
-                time={p.scheduledAt ? toWallTime(p.scheduledAt, tz).slice(11) : null}
-              />
-            ))}
-          </DaySection>
-        ))
+        <CalendarGrid
+          // A new period starts with fresh local state.
+          key={`${view}:${first}`}
+          slug={slug}
+          view={view}
+          days={days}
+          month={view === 'month' ? anchor.slice(0, 7) : undefined}
+          today={today}
+          timezone={tz}
+          posts={gridPosts}
+          canEdit={canEdit}
+        />
       )}
     </div>
-  );
-}
-
-function DaySection({
-  heading,
-  muted,
-  current,
-  children,
-}: {
-  heading: string;
-  muted?: boolean;
-  current?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2
-        className={cn('text-sm font-medium', muted && 'text-muted', current && 'text-sprout-600')}
-        aria-current={current ? 'date' : undefined}
-      >
-        {heading}
-      </h2>
-      <ul className="divide-y divide-border rounded-md border border-border">{children}</ul>
-    </section>
-  );
-}
-
-function PostRow({ post, slug, time }: { post: CalendarPost; slug: string; time: string | null }) {
-  return (
-    <li>
-      <Link
-        href={`/w/${slug}/posts/${post.groupId}` as '/'}
-        className="flex items-start gap-3 px-3 py-2 hover:bg-surface-hover"
-      >
-        <span className="w-12 shrink-0 pt-0.5 text-sm tabular-nums text-muted">{time ?? '–'}</span>
-        <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 text-sm">
-            {post.body || <span className="text-muted">No text</span>}
-          </span>
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
-            <span>
-              {post.channelName} · {providerLabel(post.provider)}
-            </span>
-            {post.itemCount > 1 && <span>Thread of {post.itemCount}</span>}
-            {post.status === 'failed' && post.errorMessage && (
-              <span className="text-danger">{post.errorMessage}</span>
-            )}
-          </span>
-        </span>
-        <PostStatusDot status={post.status} className="shrink-0 pt-0.5" />
-      </Link>
-    </li>
   );
 }
