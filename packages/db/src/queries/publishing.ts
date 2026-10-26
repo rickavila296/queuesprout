@@ -77,8 +77,9 @@ export interface StepWork {
     position: number;
     kind: 'post' | 'reply' | 'first_comment';
     body: string;
-    /** Attached media, in order. */
+    /** Attached media, in order, with their alt texts. */
     mediaIds: string[];
+    altTexts: string[];
     createdAt: Date;
   }>;
   item: {
@@ -87,6 +88,7 @@ export interface StepWork {
     kind: 'post' | 'reply' | 'first_comment';
     body: string;
     mediaIds: string[];
+    altTexts: string[];
     createdAt: Date;
   };
   parent: ItemRefRow | null;
@@ -229,7 +231,11 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
     if (!attempt) throw new Error('could not open publish attempt');
 
     const attachments = await tx
-      .select({ postItemId: postItemMedia.postItemId, mediaId: postItemMedia.mediaId })
+      .select({
+        postItemId: postItemMedia.postItemId,
+        mediaId: postItemMedia.mediaId,
+        altText: postItemMedia.altText,
+      })
       .from(postItemMedia)
       .where(
         inArray(
@@ -238,8 +244,10 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
         ),
       )
       .orderBy(asc(postItemMedia.position));
-    const mediaOf = (itemId: string) =>
-      attachments.filter((a) => a.postItemId === itemId).map((a) => a.mediaId);
+    const mediaOf = (itemId: string) => {
+      const own = attachments.filter((a) => a.postItemId === itemId);
+      return { mediaIds: own.map((a) => a.mediaId), altTexts: own.map((a) => a.altText) };
+    };
 
     const previous = items.find((i) => i.position === next.position - 1);
     const first = items[0];
@@ -259,7 +267,7 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
           position: i.position,
           kind: i.kind,
           body: i.body,
-          mediaIds: mediaOf(i.id),
+          ...mediaOf(i.id),
           createdAt: i.createdAt,
         })),
         item: {
@@ -267,7 +275,7 @@ export async function beginStep(db: Database, postId: string, now: Date): Promis
           position: next.position,
           kind: next.kind,
           body: next.body,
-          mediaIds: mediaOf(next.id),
+          ...mediaOf(next.id),
           createdAt: next.createdAt,
         },
         parent: previous ? toRef(previous) : null,

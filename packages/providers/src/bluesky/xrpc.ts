@@ -13,6 +13,8 @@ export interface XrpcCall {
   params?: Record<string, string>;
   /** JSON body (POST). */
   body?: unknown;
+  /** Raw body (POST), e.g. an image for uploadBlob. Wins over body. */
+  blob?: { bytes: Uint8Array; contentType: string };
   signal: AbortSignal;
   /** For Retry-After and ratelimit-reset. */
   now?: () => Date;
@@ -30,12 +32,20 @@ export async function xrpc<T>(method: 'GET' | 'POST', call: XrpcCall): Promise<T
   for (const [k, v] of Object.entries(call.params ?? {})) url.searchParams.set(k, v);
   const headers: Record<string, string> = { accept: 'application/json' };
   if (call.token) headers.authorization = `Bearer ${call.token}`;
-  if (call.body !== undefined) headers['content-type'] = 'application/json';
+  let body: Uint8Array<ArrayBuffer> | string | undefined;
+  if (call.blob) {
+    headers['content-type'] = call.blob.contentType;
+    // A copy backed by a plain ArrayBuffer, which is what fetch() is typed to accept.
+    body = new Uint8Array(call.blob.bytes);
+  } else if (call.body !== undefined) {
+    headers['content-type'] = 'application/json';
+    body = JSON.stringify(call.body);
+  }
 
   const res = await fetch(url, {
     method,
     headers,
-    body: call.body === undefined ? undefined : JSON.stringify(call.body),
+    body,
     signal: call.signal,
     // XRPC does not redirect; following one could leave the checked host.
     redirect: 'error',

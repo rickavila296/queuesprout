@@ -1,0 +1,4 @@
+{
+  "error": "BlobTooLarge",
+  "message": "This file is too large. It is 1.2MB but the maximum size is 1MB."
+}

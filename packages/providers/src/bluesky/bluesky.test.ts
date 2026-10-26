@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { InvalidGrantError, type PublishStep } from '@queuesprout/shared';
 import { ConnectError } from '../contract';
-import { buildPublishContext, loadFixture, TEST_NOW, useMswServer } from '../testing';
+import { buildPublishContext, loadFixture, TEST_IMAGE, TEST_NOW, useMswServer } from '../testing';
 import { blueskyAdapter } from '.';
 import { connectWithSecret, jwtExpiry, normalizeHandle } from './auth';
 import { buildFacets, findLinks, findMentions, findTags } from './facets';
@@ -67,6 +67,25 @@ describe('validate()', () => {
     ['a 26-post thread', Array.from({ length: 26 }, (_, i) => `post ${i}`), ['thread_too_long']],
   ])('%s', (_name, bodies, codes) => {
     expect(v(bodies).map((i) => i.code)).toEqual(codes);
+  });
+
+  it('takes up to 4 images with alt text of up to 2,000 graphemes', () => {
+    const imgs = (n: number, alt = '') =>
+      Array.from({ length: n }, (_, i) => ({ id: `m${i}`, alt }));
+    const check = (media: { id: string; alt?: string }[][]) =>
+      blueskyAdapter
+        .validate(ctx({ bodies: ['pics'], media }).post, [])
+        .filter((i) => i.severity === 'error')
+        .map((i) => i.code);
+    expect(check([imgs(4, 'a cat')])).toEqual([]);
+    expect(check([imgs(5)])).toEqual(['too_many_media']);
+    expect(check([imgs(1, 'x'.repeat(2001))])).toEqual(['alt_text_too_long']);
+    // An image is enough without text.
+    expect(
+      blueskyAdapter
+        .validate(ctx({ bodies: [''], media: [imgs(1)] }).post, [])
+        .filter((i) => i.severity === 'error'),
+    ).toEqual([]);
   });
 
   it('checks language settings', () => {
@@ -309,6 +328,110 @@ describe('refreshToken()', () => {
 });
 
 describe('publish()', () => {
+  /** Records each uploadBlob call's type and bytes and answers with a distinct blob ref. */
+  function captureUploads() {
+    const uploads: { type: string | null; bytes: Uint8Array }[] = [];
+    server.use(
+      http.post(xrpcUrl(PDS, 'com.atproto.repo.uploadBlob'), async ({ request }) => {
+        uploads.push({
+          type: request.headers.get('content-type'),
+          bytes: new Uint8Array(await request.arrayBuffer()),
+        });
+        const res = fixture<{ blob: { ref: { $link: string } } }>('uploadBlob');
+        return HttpResponse.json({
+          blob: { ...res.blob, ref: { $link: `${res.blob.ref.$link}-${uploads.length}` } },
+        });
+      }),
+    );
+    return uploads;
+  }
+
+  it('uploads each image as a blob and embeds them in order with alt text', async () => {
+    const { bodies } = captureCreates();
+    const uploads = captureUploads();
+    const asked: { id: string; maxBytes: number }[] = [];
+    const step = await blueskyAdapter.publish(
+      ctx({
+        bodies: ['Two pictures'],
+        media: [
+          [
+            { id: 'm-a', alt: 'A sprout' },
+            { id: 'm-b', alt: '' },
+          ],
+        ],
+        resolver: {
+          getFile: async (id, spec) => {
+            asked.push({ id, maxBytes: spec.maxBytes });
+            return {
+              ok: true,
+              file: { bytes: TEST_IMAGE, mime: 'image/jpeg', width: 1600, height: 900 },
+            };
+          },
+        },
+      }),
+    );
+
+    expect(step.kind).toBe('done');
+    expect(asked).toEqual([
+      { id: 'm-a', maxBytes: 1_000_000 },
+      { id: 'm-b', maxBytes: 1_000_000 },
+    ]);
+    expect(uploads.map((u) => u.type)).toEqual(['image/jpeg', 'image/jpeg']);
+    expect(uploads[0]?.bytes).toEqual(TEST_IMAGE);
+    expect(bodies[0]?.record.embed).toEqual({
+      $type: 'app.bsky.embed.images',
+      images: [
+        {
+          alt: 'A sprout',
+          image: expect.objectContaining({ ref: { $link: expect.stringMatching(/-1$/) } }),
+          aspectRatio: { width: 1600, height: 900 },
+        },
+        {
+          alt: '',
+          image: expect.objectContaining({ ref: { $link: expect.stringMatching(/-2$/) } }),
+          aspectRatio: { width: 1600, height: 900 },
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [true, 'transient'],
+    [false, 'validation'],
+  ] as const)(
+    'ends the step before posting when an image is unavailable (retryable: %s)',
+    async (retryable, errorKind) => {
+      const { bodies } = captureCreates();
+      const uploads = captureUploads();
+      const step = await blueskyAdapter.publish(
+        ctx({
+          bodies: ['pic'],
+          media: [[{ id: 'm-a' }]],
+          resolver: {
+            getFile: async () => ({ ok: false, retryable, message: 'The image is not ready.' }),
+          },
+        }),
+      );
+      expect(step).toEqual({ kind: 'error', errorKind, message: 'The image is not ready.' });
+      expect(uploads).toEqual([]);
+      expect(bodies).toEqual([]);
+    },
+  );
+
+  it.each([
+    ['error-rate-limit', 429, 'rate_limit'],
+    ['error-blob-too-large', 400, 'validation'],
+    ['error-internal', 500, 'transient'],
+  ] as const)('maps an uploadBlob %s to %s without posting', async (name, status, errorKind) => {
+    const { bodies } = captureCreates();
+    server.use(
+      http.post(xrpcUrl(PDS, 'com.atproto.repo.uploadBlob'), () => errorResponse(name, status)),
+    );
+    const step = await blueskyAdapter.publish(ctx({ bodies: ['pic'], media: [[{ id: 'm-a' }]] }));
+    expect(step).toMatchObject({ kind: 'error', errorKind });
+    expect(bodies).toEqual([]);
+  });
+
   it('creates the post with a stable record key, facets and the access token', async () => {
     const { bodies, auth } = captureCreates();
     const c = ctx({

@@ -1,6 +1,7 @@
 import { getFreshToken, type Keyring } from '@queuesprout/core/credentials';
 import { attemptOutcome, decideStep, type StepDecision } from '@queuesprout/core/publishing';
 import type { Database } from '@queuesprout/db';
+import type { Storage } from '@queuesprout/storage';
 import {
   beginStep,
   finishStep,
@@ -11,6 +12,7 @@ import {
 import { redact, type AdapterResolution, type PublishContext } from '@queuesprout/providers';
 import type { ProviderId, PublishStep, TargetType } from '@queuesprout/shared';
 import { createCredentialStore } from '../credentials';
+import { createMediaResolver } from '../media/resolver';
 
 /** Each publish step must finish inside this, so no worker slot ever waits on a platform. */
 export const STEP_TIMEOUT_MS = 60_000;
@@ -28,6 +30,8 @@ export interface PipelineDeps {
   now(): Date;
   log: StepLogger;
   stepTimeoutMs?: number;
+  /** The media bucket; null when S3_* is not set, which fails posts with images. */
+  storage?: Storage | null;
 }
 
 function toResult(decision: StepDecision, step: PublishStep): StepResult {
@@ -154,10 +158,11 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
       type: work.channel.targetType as TargetType,
       externalId: work.channel.externalTargetId,
     },
-    media: {
-      getUrl: () => Promise.reject(new Error('Media arrives in Phase 2')),
-      getInfo: () => Promise.reject(new Error('Media arrives in Phase 2')),
-    },
+    media: createMediaResolver({
+      db: deps.db,
+      storage: deps.storage ?? null,
+      workspaceId: work.workspaceId,
+    }),
     signal: AbortSignal.timeout(deps.stepTimeoutMs ?? STEP_TIMEOUT_MS),
     now: deps.now,
   };
