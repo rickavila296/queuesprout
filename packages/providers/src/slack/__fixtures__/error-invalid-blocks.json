@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "error": "invalid_blocks",
+  "errors": ["invalid slack file [json-pointer:/blocks/1/slack_file]"],
+  "response_metadata": {
+    "messages": ["[ERROR] invalid slack file [json-pointer:/blocks/1/slack_file]"]
+  }
+}

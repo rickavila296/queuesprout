@@ -61,9 +61,10 @@ export function SlackConnectForm({ workspaceSlug }: { workspaceSlug: string }) {
         </div>
       </div>
       <p id="slack-token-help" className="text-sm text-muted">
-        At api.slack.com/apps, create an app, add the chat:write, channels:read and groups:read bot
-        scopes, install it to your workspace and copy the Bot User OAuth Token. Then type /invite in
-        the channel and pick the app. QueueSprout stores the token encrypted.
+        At api.slack.com/apps, create an app, add the chat:write, channels:read, groups:read and
+        files:write (for images) bot scopes, install it to your workspace and copy the Bot User
+        OAuth Token. Then type /invite in the channel and pick the app. QueueSprout stores the token
+        encrypted.
       </p>
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

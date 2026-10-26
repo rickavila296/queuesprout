@@ -3,7 +3,7 @@ import { validateSettings, validateText } from '../validate';
 import { CHARS_PER_URL, MASTODON_LIMITS, MAX_ALT_CHARS } from './limits';
 import { mastodonSettingsSchema, type MastodonSettings } from './settings';
 
-const CAPABILITIES = { threads: true, firstComment: false, asyncProcessing: true, media: true };
+const CAPABILITIES = { threads: true, firstComment: false, asyncProcessing: false, media: true };
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/g;
 const REMOTE_MENTION = /(^|[^\w@])(@[\w.-]+)@[\w.-]+\.[a-z]{2,}/gi;
 

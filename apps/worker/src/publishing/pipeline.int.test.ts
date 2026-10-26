@@ -51,6 +51,9 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
     { wait: async () => undefined, random: () => 0.9 },
   );
 
+  /** Providers whose adapter acts as if its image support has not shipped. */
+  const withoutMedia = new Set<ProviderId>();
+
   /** The mock adapter, with call tracking and scripted failures. */
   const pickAdapter = (sel: { provider: ProviderId; workspaceIsSandbox: boolean }) => {
     const resolved = mockPicker(sel);
@@ -58,6 +61,10 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
     const inner = resolved.adapter;
     const adapter: ProviderAdapter = {
       ...inner,
+      capabilities: {
+        ...inner.capabilities,
+        ...(withoutMedia.has(sel.provider) && { media: false }),
+      },
       async publish(ctx) {
         calls.push({
           postId: ctx.post.id,
@@ -269,7 +276,12 @@ describe('publishing pipeline (mock mode, real Postgres)', () => {
     const { channel } = await connect('discord');
     const id = await schedule(channel.id, ['picture']);
     await attach(id, 0, 1);
-    await tick();
+    withoutMedia.add('discord');
+    try {
+      await tick();
+    } finally {
+      withoutMedia.delete('discord');
+    }
     const post = await getPost(id);
     expect([post.status, post.errorKind]).toEqual(['failed', 'validation']);
     expect(post.errorMessage).toMatch(/Images cannot be published to this channel yet/);
