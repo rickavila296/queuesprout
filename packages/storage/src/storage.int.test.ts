@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { checkBucket, createStorage } from './client';
 import { originalKey } from './keys';
+import { headObject } from './objects';
 import { presignGet, presignPut } from './presign';
 
 /**
@@ -35,9 +36,18 @@ describe.skipIf(!endpoint)('S3 storage', () => {
     });
     expect(put.status).toBe(200);
 
+    expect(await headObject(storage, key)).toEqual({
+      bytes: body.byteLength,
+      contentType: 'image/png',
+    });
+
     const get = await fetch(await presignGet(storage, key));
     expect(get.status).toBe(200);
     expect(new Uint8Array(await get.arrayBuffer())).toEqual(body);
+  });
+
+  it('reports a missing object as null', async () => {
+    expect(await headObject(storage, originalKey(randomUUID(), randomUUID(), 'png'))).toBeNull();
   });
 
   it('rejects a PUT whose content type differs from the signed one', async () => {

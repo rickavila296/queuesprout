@@ -158,6 +158,7 @@ export const postItems = pgTable(
   },
   (t) => [
     uniqueIndex('post_items_position_idx').on(t.postId, t.position),
+    unique('post_items_id_workspace_key').on(t.id, t.workspaceId),
     check('post_items_position_nonnegative', sql`${t.position} >= 0`),
     check('post_items_kind_valid', sql`${t.kind} in ('post', 'reply', 'first_comment')`),
     foreignKey({

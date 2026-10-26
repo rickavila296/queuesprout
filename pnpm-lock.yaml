@@ -59,6 +59,9 @@ importers:
       '@queuesprout/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@queuesprout/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@queuesprout/ui':
         specifier: workspace:*
         version: link:../../packages/ui

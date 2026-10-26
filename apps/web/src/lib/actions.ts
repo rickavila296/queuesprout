@@ -20,7 +20,7 @@ export function invalid(error: z.ZodError): FormState<never> {
 }
 
 /** Logs the real error server-side and returns a generic one to the client. */
-export function unexpected(scope: string, error: unknown): FormState<never> {
+export function unexpected(scope: string, error: unknown): ActionResult<never> {
   console.error(`[${scope}]`, error);
   return fail('Something went wrong. Try again.');
 }

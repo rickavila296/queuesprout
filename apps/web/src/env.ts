@@ -25,6 +25,16 @@ const serverEnvSchema = z.object({
   GITHUB_CLIENT_SECRET: optional,
   RESEND_API_KEY: optional,
   EMAIL_FROM: z.string().default('QueueSprout <hello@localhost>'),
+  /** S3-compatible media bucket. Uploads are off (with a message) until all four are set. */
+  S3_ENDPOINT: optional.pipe(z.url().optional()),
+  S3_REGION: z.string().default('auto'),
+  S3_BUCKET: optional,
+  S3_ACCESS_KEY_ID: optional,
+  S3_SECRET_ACCESS_KEY: optional,
+  S3_FORCE_PATH_STYLE: z
+    .enum(['true', 'false', ''])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

@@ -17,6 +17,7 @@
     "@queuesprout/db": "workspace:*",
     "@queuesprout/providers": "workspace:*",
     "@queuesprout/shared": "workspace:*",
+    "@queuesprout/storage": "workspace:*",
     "@queuesprout/ui": "workspace:*",
     "better-auth": "1.7.13",
     "geist": "^1.8.2",
