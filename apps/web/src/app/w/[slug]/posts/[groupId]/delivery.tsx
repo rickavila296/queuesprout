@@ -4,6 +4,7 @@ import type { PublishHistory } from '@queuesprout/db';
 import type { PostStatus, ProviderId, PublishErrorKind } from '@queuesprout/shared';
 import { ProviderMark } from '@/app/w/[slug]/channels/provider-mark';
 import { PostStatusDot } from '@/components/post-status';
+import { isOverdue } from '@/lib/post-timing';
 import { providerLabel } from '@/lib/providers';
 import { RetryForm } from './retry-form';
 
@@ -53,12 +54,15 @@ export function DeliveryList({
   groupId,
   canRetry,
   showText,
+  now,
 }: {
   posts: DeliveryPost[];
   timezone: string;
   workspaceSlug: string;
   groupId: string;
   canRetry: boolean;
+  /** Request time, for flagging posts that are past due. */
+  now: Date;
   /** Show each post's text; the composer above already shows it when editable. */
   showText: boolean;
 }) {
@@ -85,7 +89,7 @@ export function DeliveryList({
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {p.provider && <ProviderMark provider={p.provider} />}
               <span className="font-medium">{p.channel}</span>
-              <PostStatusDot status={p.status} />
+              <PostStatusDot status={p.status} overdue={isOverdue(p, now)} />
               {when && (
                 <span className="text-xs text-muted">
                   {p.publishedAt ? 'Published' : 'For'} {at(when)}

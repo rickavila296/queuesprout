@@ -124,6 +124,7 @@ export default async function EditPostPage({ params }: PageProps<'/w/[slug]/post
             groupId={group.id}
             canRetry={canEdit}
             showText={!showComposer}
+            now={new Date()}
           />
         </section>
       )}

@@ -73,7 +73,8 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
   const data = await dataAccess().withWorkspace(ctx, async (tx) => {
     const workspace = await getWorkspace(tx, ctx.workspaceId);
     const tz = workspace?.timezone ?? 'UTC';
-    const today = toWallDate(new Date(), tz);
+    const now = new Date();
+    const today = toWallDate(now, tz);
     const anchor =
       typeof query.date === 'string' &&
       DAY_PATTERN.test(query.date) &&
@@ -86,6 +87,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
     return {
       tz,
       today,
+      now,
       anchor,
       first,
       end,
@@ -94,7 +96,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
       drafts: view === 'list' ? await listUnscheduledDrafts(tx, ctx.workspaceId) : [],
     };
   });
-  const { tz, today, anchor, first, end, posts, drafts } = data;
+  const { tz, today, now, anchor, first, end, posts, drafts } = data;
 
   if (data.channelCount === 0 && posts.length === 0 && drafts.length === 0) {
     return (
@@ -188,7 +190,14 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
       {view === 'list' ? (
         <>
           <p className="text-sm text-muted">Times in {tz}</p>
-          <ListView slug={slug} timezone={tz} today={today} posts={posts} drafts={drafts} />
+          <ListView
+            slug={slug}
+            timezone={tz}
+            today={today}
+            now={now}
+            posts={posts}
+            drafts={drafts}
+          />
         </>
       ) : (
         <CalendarGrid
