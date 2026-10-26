@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { checkBucket, createStorage } from './client';
 import { originalKey } from './keys';
-import { headObject } from './objects';
+import { getObjectBytes, headObject, putObject } from './objects';
 import { presignGet, presignPut } from './presign';
 
 /**
@@ -47,7 +47,17 @@ describe.skipIf(!endpoint)('S3 storage', () => {
   });
 
   it('reports a missing object as null', async () => {
-    expect(await headObject(storage, originalKey(randomUUID(), randomUUID(), 'png'))).toBeNull();
+    const key = originalKey(randomUUID(), randomUUID(), 'png');
+    expect(await headObject(storage, key)).toBeNull();
+    expect(await getObjectBytes(storage, key, 100)).toBeNull();
+  });
+
+  it('writes and reads objects server-side, with a size cap', async () => {
+    const key = originalKey(randomUUID(), randomUUID(), 'webp');
+    const body = new Uint8Array([1, 2, 3, 4, 5]);
+    await putObject(storage, key, body, 'image/webp');
+    expect(await getObjectBytes(storage, key, 5)).toEqual(body);
+    await expect(getObjectBytes(storage, key, 4)).rejects.toThrow(/larger than/);
   });
 
   it('rejects a PUT whose content type differs from the signed one', async () => {

@@ -11,7 +11,8 @@
     "./credentials": "./src/queries/credentials.ts",
     "./migrate": "./src/migrate.ts",
     "./publishing": "./src/queries/publishing.ts",
-    "./testing": "./src/test-utils.ts"
+    "./testing": "./src/test-utils.ts",
+    "./media-processing": "./src/queries/media-processing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
