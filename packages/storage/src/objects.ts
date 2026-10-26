@@ -1,4 +1,5 @@
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   NoSuchKey,
@@ -64,4 +65,9 @@ export async function putObject(
       ContentType: contentType,
     }),
   );
+}
+
+/** Removes an object. Removing one that is not there succeeds, so a retry is safe. */
+export async function deleteObject(storage: Storage, key: string): Promise<void> {
+  await storage.client.send(new DeleteObjectCommand({ Bucket: storage.bucket, Key: key }));
 }

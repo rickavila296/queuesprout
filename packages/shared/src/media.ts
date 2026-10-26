@@ -8,6 +8,24 @@ export const MEDIA_RETENTIONS = ['library', 'auto'] as const;
 export type MediaRetention = (typeof MEDIA_RETENTIONS)[number];
 
 /**
+ * When the media.retention job removes a file's bytes from storage. Files deleted from
+ * the library go at the next run. A file is never
+ * removed while a post that may still publish uses it (draft, waiting for approval,
+ * scheduled, in flight, or failed within MEDIA_FAILED_POST_HOLD_DAYS, since a failed post
+ * can be retried).
+ */
+export const MEDIA_RETENTION = {
+  /** "auto" files: this long after the last post using them is final, or after upload. */
+  autoDays: 30,
+  /** Files that failed the upload check. */
+  failedDays: 7,
+  /** Reserved but never uploaded. */
+  abandonedUploadHours: 24,
+  /** A failed post keeps its files this long for a retry. */
+  failedPostHoldDays: 30,
+} as const;
+
+/**
  * Upload allowlist and the file extension each type is stored under. Images only in
  * Phase 2; video arrives with transcoding in Phase 3. The worker checks magic bytes
  * before a file is marked ready, so this is only the first gate.
