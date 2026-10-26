@@ -1,0 +1,14 @@
+{
+  "message": "Invalid Form Body",
+  "code": 50035,
+  "errors": {
+    "content": {
+      "_errors": [
+        {
+          "code": "BASE_TYPE_MAX_LENGTH",
+          "message": "Must be 2000 or fewer in length."
+        }
+      ]
+    }
+  }
+}
