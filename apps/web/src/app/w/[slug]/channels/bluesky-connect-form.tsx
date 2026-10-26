@@ -5,6 +5,11 @@ import { Button, FieldError, Input, Label } from '@queuesprout/ui';
 import { connectBlueskyAction } from './actions';
 
 export function BlueskyConnectForm({ workspaceSlug }: { workspaceSlug: string }) {
+  // Controlled, because React resets form fields after an action and a failed attempt
+  // should keep what was typed.
+  const [handle, setHandle] = useState('');
+  const [password, setPassword] = useState('');
+  const [serviceUrl, setServiceUrl] = useState('');
   const [state, action, pending] = useActionState(
     async (prev: Parameters<typeof connectBlueskyAction>[0], formData: FormData) => {
       const result = await connectBlueskyAction(prev, formData);
@@ -18,11 +23,6 @@ export function BlueskyConnectForm({ workspaceSlug }: { workspaceSlug: string })
     },
     null,
   );
-  // Controlled, because React resets form fields after an action and a failed attempt
-  // should keep what was typed.
-  const [handle, setHandle] = useState('');
-  const [password, setPassword] = useState('');
-  const [serviceUrl, setServiceUrl] = useState('');
   const errors = state && !state.ok ? state.fieldErrors : undefined;
 
   return (
