@@ -7,3 +7,4 @@ export * from './publishing';
 export * from './limits';
 export * from './time';
 export * from './compose';
+export * from './media';

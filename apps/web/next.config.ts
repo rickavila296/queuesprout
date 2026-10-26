@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
     '@queuesprout/db',
     '@queuesprout/providers',
     '@queuesprout/shared',
+    '@queuesprout/storage',
     '@queuesprout/ui',
   ],
   serverExternalPackages: ['pg'],

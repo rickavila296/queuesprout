@@ -71,6 +71,20 @@
       "when": 1793011047867,
       "tag": "0009_phase1_failure_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793018238225,
+      "tag": "0010_phase2_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793018247055,
+      "tag": "0011_phase2_media_rls",
+      "breakpoints": true
     }
   ]
 }
