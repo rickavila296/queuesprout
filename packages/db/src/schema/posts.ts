@@ -83,6 +83,8 @@ export const posts = pgTable(
     errorKind: text('error_kind').$type<PublishErrorKind>(),
     errorMessage: text('error_message'),
     attemptCount: integer('attempt_count').notNull().default(0),
+    /** Set once the failure email for this post went out; cleared when it is retried. */
+    failureNotifiedAt: timestamp('failure_notified_at', { withTimezone: true }),
     /** Optimistic concurrency for edits (drag-to-reschedule vs another tab). */
     version: integer('version').notNull().default(1),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -111,6 +113,9 @@ export const posts = pgTable(
     index('posts_calendar_idx')
       .on(t.workspaceId, t.scheduledAt)
       .where(sql`${t.deletedAt} is null`),
+    index('posts_unnotified_failures_idx')
+      .on(t.updatedAt)
+      .where(sql`${t.status} = 'failed' and ${t.failureNotifiedAt} is null`),
     index('posts_group_idx').on(t.groupId),
     index('posts_channel_idx').on(t.channelId),
     unique('posts_id_workspace_key').on(t.id, t.workspaceId),

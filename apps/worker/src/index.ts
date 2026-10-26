@@ -6,6 +6,8 @@ import { MIGRATIONS_FOLDER, runMigrations } from '@queuesprout/db/migrate';
 import { createAdapterPicker } from './adapters';
 import { parseWorkerEnv } from './env';
 import { createLogger } from './logger';
+import { sendFailureEmails } from './notifications/failures';
+import { logMailer, resendMailer } from './notifications/mailer';
 import { dispatchOnce, type Enqueue } from './publishing/dispatcher';
 import { refreshExpiringTokens } from './publishing/refresh';
 import { runStep, type PipelineDeps } from './publishing/step';
@@ -17,6 +19,7 @@ const QUEUES = {
   heartbeat: 'system.heartbeat',
   publishStep: 'publish.step',
   tokenRefresh: 'token.refresh',
+  failureEmails: 'notify.failures',
 } as const;
 
 /** The dispatcher reads due posts from Postgres this often. */
@@ -91,6 +94,30 @@ async function main(): Promise<void> {
     const summary = await refreshExpiringTokens(deps);
     log.info(summary, 'token refresh finished');
   });
+
+  if (env.RESEND_API_KEY || env.NODE_ENV !== 'production') {
+    const mail = env.RESEND_API_KEY
+      ? resendMailer(env.RESEND_API_KEY, env.EMAIL_FROM)
+      : logMailer(log);
+    await boss.createQueue(QUEUES.failureEmails, { policy: 'singleton' });
+    await boss.schedule(QUEUES.failureEmails, '* * * * *');
+    await boss.work(QUEUES.failureEmails, async () => {
+      const summary = await sendFailureEmails({
+        db,
+        mail,
+        publicUrl: env.PUBLIC_URL,
+        now: () => new Date(),
+        log,
+      });
+      if (summary.sent + summary.skipped + summary.errors > 0) {
+        log.info(summary, 'failure emails sent');
+      }
+    });
+  } else {
+    // Leaves failures unmarked, so they are emailed once a key is set.
+    await boss.unschedule(QUEUES.failureEmails).catch(() => undefined);
+    log.warn('RESEND_API_KEY is not set: failure emails are off');
+  }
 
   let dispatching = false;
   const dispatcher = setInterval(() => {
