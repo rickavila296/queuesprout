@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "channel": "C0000000004",
+  "ts": "1793000000.000100",
+  "message": {
+    "type": "message",
+    "subtype": "bot_message",
+    "text": "Hello Slack",
+    "ts": "1793000000.000100",
+    "bot_id": "B0000000003"
+  }
+}

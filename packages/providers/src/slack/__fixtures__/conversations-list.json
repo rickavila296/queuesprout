@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "channels": [
+    {
+      "id": "C0000000005",
+      "name": "general",
+      "is_channel": true,
+      "is_private": false,
+      "is_archived": false,
+      "is_member": false
+    },
+    {
+      "id": "C0000000004",
+      "name": "announcements",
+      "is_channel": true,
+      "is_private": false,
+      "is_archived": false,
+      "is_member": true
+    }
+  ],
+  "response_metadata": { "next_cursor": "" }
+}

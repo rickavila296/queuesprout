@@ -6,6 +6,7 @@
 import type { ProviderId } from '@queuesprout/shared';
 import { connectWithSecret as blueskyConnect } from './bluesky/auth';
 import { connectWithSecret as discordConnect } from './discord/auth';
+import { connectWithSecret as slackConnect } from './slack/auth';
 import { connectWithSecret as telegramConnect } from './telegram/auth';
 import {
   exchangeCode as mastodonExchange,
@@ -36,6 +37,10 @@ export type {
 export { normalizeInstance as normalizeMastodonInstance } from './mastodon/http';
 export { WEBHOOK_URL_PATTERN as DISCORD_WEBHOOK_URL_PATTERN } from './discord/limits';
 export {
+  BOT_TOKEN_PATTERN as SLACK_BOT_TOKEN_PATTERN,
+  parseChannel as parseSlackChannel,
+} from './slack/limits';
+export {
   BOT_TOKEN_PATTERN as TELEGRAM_BOT_TOKEN_PATTERN,
   normalizeChat as normalizeTelegramChat,
 } from './telegram/limits';
@@ -48,6 +53,7 @@ const SECRET_CONNECTORS: Partial<Record<ProviderId, SecretConnector>> = {
   bluesky: blueskyConnect,
   discord: discordConnect,
   telegram: telegramConnect,
+  slack: slackConnect,
 };
 
 export function secretConnector(provider: ProviderId): SecretConnector | null {

@@ -6,6 +6,7 @@ import type { ProviderId } from '@queuesprout/shared';
 import type { ProviderDefinition } from './contract';
 import { blueskyDefinition } from './bluesky/validate';
 import { discordDefinition } from './discord/validate';
+import { slackDefinition } from './slack/validate';
 import { telegramDefinition } from './telegram/validate';
 import { mastodonDefinition } from './mastodon/validate';
 import { BASE_DEFINITIONS } from './definitions';
@@ -24,6 +25,7 @@ export { hasErrors } from './validate';
 export { blueskySettingsSchema } from './bluesky/settings';
 export { MASTODON_VISIBILITIES, mastodonSettingsSchema } from './mastodon/settings';
 export { discordSettingsSchema } from './discord/settings';
+export { slackSettingsSchema } from './slack/settings';
 export { telegramSettingsSchema } from './telegram/settings';
 export { MOCK_FAILURES, demoAccount } from './mock/mock-adapter';
 
@@ -34,6 +36,7 @@ const DEFINITIONS: Record<ProviderId, ProviderDefinition> = {
   mastodon: mastodonDefinition as ProviderDefinition,
   discord: discordDefinition as ProviderDefinition,
   telegram: telegramDefinition as ProviderDefinition,
+  slack: slackDefinition as ProviderDefinition,
 };
 
 export function getProviderDefinition(id: ProviderId): ProviderDefinition {
