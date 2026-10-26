@@ -60,4 +60,20 @@ describe('renderFailureEmail', () => {
     expect(email.html).toContain('&#60;b&#62;Acme&#60;/b&#62;');
     expect(email.text).toMatch(/…"/);
   });
+
+  it('does not repeat advice the error already gives', () => {
+    const email = renderFailureEmail({
+      ...base,
+      failures: [
+        {
+          channel: 'QueueSprout',
+          providerLabel: 'Telegram',
+          errorKind: 'unknown',
+          errorMessage:
+            'The connection to Telegram dropped, so the message may or may not be posted. Check the platform before retrying.',
+        },
+      ],
+    });
+    expect(email.text.match(/Check the platform before retrying/g)).toHaveLength(1);
+  });
 });

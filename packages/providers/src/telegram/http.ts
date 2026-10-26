@@ -1,4 +1,4 @@
-import { retryAfterMs } from '../net';
+import { fetchFresh, retryAfterMs } from '../net';
 import { TelegramError } from './errors';
 import { API_URL } from './limits';
 
@@ -19,14 +19,13 @@ export async function telegram<T>(
   method: string,
   options: { body?: Record<string, unknown>; signal: AbortSignal; now?: () => Date },
 ): Promise<T> {
-  const res = await fetch(`${API_URL}/bot${token}/${method}`, {
+  const { res, text } = await fetchFresh(`${API_URL}/bot${token}/${method}`, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     body: JSON.stringify(options.body ?? {}),
     signal: options.signal,
     redirect: 'error',
   });
-  const text = await res.text();
   let json: BotApiResponse<T> | null = null;
   try {
     json = text ? (JSON.parse(text) as BotApiResponse<T>) : null;

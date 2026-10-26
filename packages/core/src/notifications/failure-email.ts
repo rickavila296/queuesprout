@@ -30,17 +30,21 @@ function shorten(text: string): string {
 }
 
 /** What to do next, by error kind. Mirrors the hints on the post page. */
-function nextStep(kind: PublishErrorKind | null): string {
-  switch (kind) {
-    case 'auth':
-      return 'Reconnect the account, then retry.';
-    case 'unknown':
-      return 'It may have posted anyway. Check the platform before retrying.';
-    case 'validation':
-      return 'The platform refused the post.';
-    default:
-      return 'Retry it from the post page.';
-  }
+const NEXT_STEPS: Partial<Record<PublishErrorKind, { hint: string; said: RegExp }>> = {
+  auth: { hint: 'Reconnect the account, then retry.', said: /reconnect/i },
+  unknown: {
+    hint: 'It may have posted anyway. Check the platform before retrying.',
+    said: /check (the|on the) platform|verify on platform/i,
+  },
+  validation: { hint: 'The platform refused the post.', said: /refused|rejected/i },
+};
+const RETRY_HINT = { hint: 'Retry it from the post page.', said: /\bretry/i };
+
+/** The error, followed by what to do next unless the error already says it. */
+function describe(kind: PublishErrorKind | null, message: string | null): string {
+  const text = message ?? 'Failed.';
+  const next = (kind && NEXT_STEPS[kind]) ?? RETRY_HINT;
+  return next.said.test(text) ? text : `${text} ${next.hint}`;
 }
 
 /** The email sent when a post fails on one or more channels. Plain text and simple HTML. */
@@ -54,8 +58,7 @@ export function renderFailureEmail(input: FailureEmailInput): RenderedEmail {
   const excerpt = shorten(input.excerpt);
 
   const lines = input.failures.map(
-    (f) =>
-      `- ${f.channel} (${f.providerLabel}): ${f.errorMessage ?? 'Failed.'} ${nextStep(f.errorKind)}`,
+    (f) => `- ${f.channel} (${f.providerLabel}): ${describe(f.errorKind, f.errorMessage)}`,
   );
   const text = [
     `A post in ${input.workspaceName} did not publish.`,
@@ -73,7 +76,7 @@ export function renderFailureEmail(input: FailureEmailInput): RenderedEmail {
   const items = input.failures
     .map(
       (f) =>
-        `<li><strong>${escapeHtml(f.channel)}</strong> (${escapeHtml(f.providerLabel)}): ${escapeHtml(f.errorMessage ?? 'Failed.')} ${escapeHtml(nextStep(f.errorKind))}</li>`,
+        `<li><strong>${escapeHtml(f.channel)}</strong> (${escapeHtml(f.providerLabel)}): ${escapeHtml(describe(f.errorKind, f.errorMessage))}</li>`,
     )
     .join('');
   const html = `<div style="font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;color:#121614">

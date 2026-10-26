@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { hasRole } from '@queuesprout/core';
@@ -22,6 +22,7 @@ import { buttonVariants, cn } from '@queuesprout/ui';
 import { CalendarGrid, type GridPost } from '@/components/calendar/calendar-grid';
 import { ListView } from '@/components/calendar/list-view';
 import { dataAccess } from '@/lib/db';
+import { parseSavedNotice, savedNoticeText } from '@/lib/saved-notice';
 import { requireWorkspace } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Calendar' };
@@ -135,8 +136,34 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
       : [],
   );
 
+  const notice = parseSavedNotice(query);
+
   return (
     <div className={cn('mx-auto flex flex-col gap-4', view === 'list' ? 'max-w-3xl' : 'max-w-6xl')}>
+      {notice && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-md border border-sprout-500/40 bg-sprout-100 px-3 py-2 text-sm text-sprout-600"
+        >
+          <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+          <p className="flex-1">
+            {savedNoticeText(notice, tz, now)}{' '}
+            <Link
+              href={`/w/${slug}/posts/${notice.groupId}` as '/'}
+              className="font-medium underline underline-offset-2"
+            >
+              View post
+            </Link>
+          </p>
+          <Link
+            href={href(view, anchor)}
+            className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+            aria-label="Dismiss"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="mr-2 text-lg font-semibold sm:text-xl">

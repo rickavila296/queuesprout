@@ -15,6 +15,7 @@ import { composeSchema, effectiveItems, fail, workspaceSlugSchema } from '@queue
 import { invalid, unexpected, type FormState } from '@/lib/actions';
 import { resolveSchedule, validateThread } from '@/lib/compose';
 import { dataAccess } from '@/lib/db';
+import { savedNoticeQuery } from '@/lib/saved-notice';
 import { requireWorkspace } from '@/lib/session';
 
 export type ComposeState = FormState;
@@ -26,7 +27,7 @@ const SAVE_ERRORS: Record<Exclude<SavePostGroupResult, { ok: true }>['error'], s
   channel_unavailable: 'A channel is disconnected or needs reconnecting. Remove it to continue.',
 };
 
-type Outcome = { kind: 'saved'; groupId: string } | { kind: 'error'; state: ComposeState };
+type Outcome = { kind: 'saved'; notice: string } | { kind: 'error'; state: ComposeState };
 
 export async function saveComposeAction(
   _prev: ComposeState,
@@ -103,7 +104,18 @@ export async function saveComposeAction(
         );
         return { kind: 'error', state: { ...fail(message), fieldErrors } };
       }
-      return { kind: 'saved', groupId: saved.groupId };
+      return {
+        kind: 'saved',
+        notice: savedNoticeQuery(
+          {
+            mode: input.mode,
+            groupId: saved.groupId,
+            channels: picks.length,
+            at: schedule.scheduledAt,
+          },
+          workspace.timezone,
+        ),
+      };
     });
   } catch (error) {
     if (error instanceof ForbiddenError) return fail(error.message);
@@ -112,7 +124,7 @@ export async function saveComposeAction(
 
   if (outcome.kind === 'error') return outcome.state;
   revalidatePath(`/w/${input.workspaceSlug}`, 'layout');
-  redirect(`/w/${input.workspaceSlug}` as '/');
+  redirect(`/w/${input.workspaceSlug}?${outcome.notice}` as '/');
 }
 
 const deleteSchema = z.object({ workspaceSlug: workspaceSlugSchema, groupId: z.uuid() });
