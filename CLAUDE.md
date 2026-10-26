@@ -15,7 +15,8 @@
   next or process.env; everything arrives through PublishContext.
 - packages/db is the only place Drizzle schema and SQL live.
 - apps/web may import providers only from the "@queuesprout/providers/client" entry
-  (validate, limits, settingsSchema). It never calls publish() or refreshToken().
+  (validate, limits, settingsSchema) and, in server code, "@queuesprout/providers/connect"
+  (sign-in and OAuth callbacks). It never calls publish() or refreshToken().
 - apps/worker is the only caller of publish(), refreshToken() and credential decryption.
 - Credential tables are imported only by packages/core/credentials and apps/worker.
 

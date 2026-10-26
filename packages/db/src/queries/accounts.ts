@@ -10,6 +10,8 @@ export interface ConnectAccountInput {
   providerAppId?: string | null;
   externalAccountId: string;
   displayName: string;
+  /** The account's own server, for providers without a fixed API host. */
+  serviceUrl?: string | null;
   /** Ciphertext from @queuesprout/core/credentials; plaintext never reaches the database. */
   accessTokenEnc: Buffer;
   refreshTokenEnc?: Buffer | null;
@@ -30,7 +32,7 @@ export async function connectAccount(
     const result = await tx.execute<{ id: string }>(sql`
       select app.connect_account(
         ${input.workspaceId}::uuid, ${input.provider}::provider_id, ${input.providerAppId ?? null}::uuid,
-        ${input.externalAccountId}, ${input.displayName},
+        ${input.externalAccountId}, ${input.displayName}, ${input.serviceUrl ?? null}::text,
         ${input.accessTokenEnc}::bytea, ${input.refreshTokenEnc ?? null}::bytea,
         ${input.expiresAt?.toISOString() ?? null}::timestamptz,
         ${sql.param(input.scopes ?? [])}::text[], ${input.keyVersion}::smallint

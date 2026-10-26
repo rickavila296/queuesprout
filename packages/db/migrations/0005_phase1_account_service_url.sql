@@ -1,0 +1,2 @@
+ALTER TABLE "connected_accounts" ADD COLUMN "service_url" text;--> statement-breakpoint
+ALTER TABLE "connected_accounts" ADD CONSTRAINT "connected_accounts_service_url_https" CHECK ("connected_accounts"."service_url" ~ '^https://');

@@ -134,7 +134,7 @@ export default tseslint.config(
     'packages/ui is presentation only.',
   ),
   {
-    // apps/web: providers only through the client entry; never the credential schema.
+    // apps/web: providers only through the client and connect entries; never the credential schema.
     files: ['apps/web/**'],
     rules: {
       'no-restricted-imports': [
@@ -143,7 +143,8 @@ export default tseslint.config(
           paths: [
             {
               name: '@queuesprout/providers',
-              message: 'Import "@queuesprout/providers/client"; only apps/worker calls publish().',
+              message:
+                'Import "@queuesprout/providers/client" or "/connect"; only apps/worker calls publish().',
             },
             {
               name: '@queuesprout/core/credentials',

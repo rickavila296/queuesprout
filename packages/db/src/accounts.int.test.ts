@@ -82,6 +82,7 @@ describe('accounts, credentials and posts', () => {
         provider: 'bluesky',
         externalAccountId,
         displayName: 'acme.bsky.social',
+        serviceUrl: 'https://pds.example',
         accessTokenEnc: blob('cipher-1'),
         refreshTokenEnc: blob('refresh-1'),
         expiresAt: new Date(Date.now() + 3_600_000),
@@ -129,6 +130,41 @@ describe('accounts, credentials and posts', () => {
       .from(connectedAccounts)
       .where(eq(connectedAccounts.id, acmeAccount));
     expect(rows[0]?.status).toBe('active');
+  });
+
+  it('stores the account server, which only reconnecting can change', async () => {
+    const read = async () =>
+      (
+        await t.owner
+          .select({ serviceUrl: connectedAccounts.serviceUrl })
+          .from(connectedAccounts)
+          .where(eq(connectedAccounts.id, acmeAccount))
+      )[0]?.serviceUrl;
+    expect(await read()).toBe('https://pds.example');
+    // Admins can rename an account, but not point its tokens at another server.
+    await da.withWorkspace(acme, (tx) =>
+      tx
+        .update(connectedAccounts)
+        .set({ displayName: 'Acme on Bluesky' })
+        .where(eq(connectedAccounts.id, acmeAccount)),
+    );
+    await expectPgError(
+      da.withWorkspace(acme, (tx) =>
+        tx
+          .update(connectedAccounts)
+          .set({ serviceUrl: 'https://evil.example' })
+          .where(eq(connectedAccounts.id, acmeAccount)),
+      ),
+      /worker_only_field/,
+    );
+    await expectPgError(
+      t.owner
+        .update(connectedAccounts)
+        .set({ serviceUrl: 'http://pds.example' })
+        .where(eq(connectedAccounts.id, acmeAccount)),
+      /connected_accounts_service_url_https/,
+    );
+    expect(await read()).toBe('https://pds.example');
   });
 
   it('refuses to connect accounts for editors and viewers', async () => {

@@ -89,6 +89,10 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
     });
   }
   const { adapter, mock } = resolved;
+  const accountRef = {
+    externalId: work.account.externalAccountId,
+    serviceUrl: work.account.serviceUrl,
+  };
 
   let fresh: Awaited<ReturnType<typeof getFreshToken>>;
   try {
@@ -101,7 +105,8 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
         provider: work.provider,
         externalAccountId: work.account.externalAccountId,
       },
-      refresh: (creds) => adapter.refreshToken(creds, AbortSignal.timeout(REFRESH_TIMEOUT_MS)),
+      refresh: (creds) =>
+        adapter.refreshToken(creds, AbortSignal.timeout(REFRESH_TIMEOUT_MS), accountRef),
       now: deps.now,
     });
   } catch (error) {
@@ -135,6 +140,7 @@ export async function runStep(deps: PipelineDeps, postId: string): Promise<Follo
     root: work.root,
     checkpoint: work.checkpoint,
     creds: fresh.creds,
+    account: accountRef,
     channelCreds: null,
     target: {
       type: work.channel.targetType as TargetType,

@@ -154,10 +154,8 @@ describe('mock adapter', () => {
 
   it('refreshes tokens and connects demo accounts without any platform call', async () => {
     const adapter = createMockAdapter(BASE_DEFINITIONS.linkedin, instant);
-    const fresh = await adapter.refreshToken(
-      buildPublishContext().creds,
-      new AbortController().signal,
-    );
+    const ctx = buildPublishContext();
+    const fresh = await adapter.refreshToken(ctx.creds, new AbortController().signal, ctx.account);
     expect(fresh.accessToken).toMatch(/^mock-access-/);
     const demo = demoAccount('pinterest');
     expect(demo.targets[0]).toMatchObject({

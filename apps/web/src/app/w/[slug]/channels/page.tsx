@@ -8,6 +8,7 @@ import { providerLabel } from '@/lib/providers';
 import { workspaceIsMock } from '@/lib/publish-mode';
 import { requireWorkspace } from '@/lib/session';
 import { removeChannelAction } from './actions';
+import { BlueskyConnectForm } from './bluesky-connect-form';
 import { DemoChannelForm } from './demo-channel-form';
 import { ProviderMark } from './provider-mark';
 
@@ -53,12 +54,19 @@ export default async function ChannelsPage({ params }: PageProps<'/w/[slug]/chan
           <DemoChannelForm workspaceSlug={slug} />
         </Card>
       )}
-      {manage && !mock && (
-        <Card>
-          <p className="text-muted">
-            Connecting real accounts arrives with each platform&apos;s adapter, starting with
-            Bluesky.
-          </p>
+      {manage && workspace && !workspace.isSandbox && (
+        <Card className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <ProviderMark provider="bluesky" />
+            <h2 className="font-medium">Connect Bluesky</h2>
+          </div>
+          {mock && (
+            <p className="text-sm text-muted">
+              Publishing is in mock mode on this server, so posts to this account are simulated and
+              never reach Bluesky.
+            </p>
+          )}
+          <BlueskyConnectForm workspaceSlug={slug} />
         </Card>
       )}
 

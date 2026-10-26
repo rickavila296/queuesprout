@@ -1,0 +1,9 @@
+{
+  "did": "did:plc:qs7test4fixture2acct",
+  "handle": "queuesprout-test.bsky.social",
+  "displayName": "QueueSprout Test",
+  "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:qs7test4fixture2acct/fixture@jpeg",
+  "followersCount": 3,
+  "followsCount": 1,
+  "postsCount": 12
+}

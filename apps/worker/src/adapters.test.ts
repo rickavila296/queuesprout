@@ -14,9 +14,19 @@ describe('createAdapterPicker', () => {
     expect(pick({ provider: 'bluesky', workspaceIsSandbox: true })).toMatchObject({ mock: true });
   });
 
+  it('picks the live adapter for a real workspace in live mode', () => {
+    // Selection only: nothing here calls the adapter.
+    const pick = createAdapterPicker({ PUBLISH_MODE: 'live', PUBLIC_URL });
+    expect(pick({ provider: 'bluesky', workspaceIsSandbox: false })).toMatchObject({
+      ok: true,
+      mock: false,
+      adapter: { id: 'bluesky' },
+    });
+  });
+
   it('never falls back to mock for a real workspace in live mode', () => {
     const pick = createAdapterPicker({ PUBLISH_MODE: 'live', PUBLIC_URL });
-    expect(pick({ provider: 'bluesky', workspaceIsSandbox: false })).toEqual({
+    expect(pick({ provider: 'mastodon', workspaceIsSandbox: false })).toEqual({
       ok: false,
       error: 'not_implemented',
     });
