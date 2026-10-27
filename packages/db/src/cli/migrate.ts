@@ -7,7 +7,11 @@ if (!url) {
   process.exit(1);
 }
 
-const db = createDb(url, { max: 2, applicationName: 'queuesprout-migrate' });
+const db = createDb(url, {
+  max: 2,
+  applicationName: 'queuesprout-migrate',
+  sslCa: process.env.DATABASE_SSL_CA || undefined,
+});
 try {
   await runMigrations(db);
   console.log('Migrations applied.');

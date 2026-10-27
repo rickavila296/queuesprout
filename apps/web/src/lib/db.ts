@@ -6,7 +6,11 @@ const globalForDb = globalThis as unknown as { qsDb?: Database; qsDataAccess?: D
 
 /** One pool per server process (and per dev hot reload). */
 export function db(): Database {
-  globalForDb.qsDb ??= createDb(env().DATABASE_URL, { max: 5, applicationName: 'queuesprout-web' });
+  globalForDb.qsDb ??= createDb(env().DATABASE_URL, {
+    max: 5,
+    applicationName: 'queuesprout-web',
+    sslCa: env().DATABASE_SSL_CA,
+  });
   return globalForDb.qsDb;
 }
 
