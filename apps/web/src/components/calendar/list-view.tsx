@@ -125,7 +125,7 @@ function PostRow({
           </span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
             <span>
-              {post.channelName} · {providerLabel(post.provider)}
+              {providerLabel(post.provider)} · {post.channelName}
             </span>
             {post.itemCount > 1 && <span>Thread of {post.itemCount}</span>}
             {post.status === 'failed' && post.errorMessage && (
