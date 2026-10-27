@@ -11,6 +11,8 @@ const serverEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /** Web role (member of qs_web): RLS applies. Never the worker/owner role. */
   DATABASE_URL: z.url(),
+  /** CA of a database with a private CA (Supabase): PEM or base64 PEM. TLS is then verified. */
+  DATABASE_SSL_CA: optional,
   PUBLIC_URL: z.url().default('http://localhost:3000'),
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters.'),
   PUBLISH_MODE: publishModeSchema,

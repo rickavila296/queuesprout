@@ -14,6 +14,8 @@ const workerEnvSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     /** Owner role: runs migrations and bypasses RLS. Never give this URL to apps/web. */
     WORKER_DATABASE_URL: z.url(),
+    /** CA of a database with a private CA (Supabase): PEM or base64 PEM. TLS is then verified. */
+    DATABASE_SSL_CA: optional,
     PUBLISH_MODE: publishModeSchema,
     /** AES-256-GCM key(s) for social account tokens; see .env.example. */
     TOKEN_ENCRYPTION_KEY: z

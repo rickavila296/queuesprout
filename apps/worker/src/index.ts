@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { PgBoss } from 'pg-boss';
-import { createDb, ping } from '@queuesprout/db';
+import { createDb, pgConnection, ping } from '@queuesprout/db';
 import { checkBucket, createStorage } from '@queuesprout/storage';
 import { MIGRATIONS_FOLDER, runMigrations } from '@queuesprout/db/migrate';
 import { createAdapterPicker } from './adapters';
@@ -38,7 +38,11 @@ function migrationsFolder(): string {
 }
 
 async function main(): Promise<void> {
-  const db = createDb(env.WORKER_DATABASE_URL, { max: 5, applicationName: 'queuesprout-worker' });
+  const db = createDb(env.WORKER_DATABASE_URL, {
+    max: 5,
+    applicationName: 'queuesprout-worker',
+    sslCa: env.DATABASE_SSL_CA,
+  });
   await ping(db);
 
   if (env.MIGRATE_ON_START) {
@@ -47,7 +51,7 @@ async function main(): Promise<void> {
   }
 
   const boss = new PgBoss({
-    connectionString: env.WORKER_DATABASE_URL,
+    ...pgConnection(env.WORKER_DATABASE_URL, env.DATABASE_SSL_CA),
     application_name: 'queuesprout-worker-boss',
     schema: 'pgboss',
     max: 5,

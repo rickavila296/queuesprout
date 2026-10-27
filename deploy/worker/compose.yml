@@ -1,0 +1,17 @@
+# The QueueSprout worker on a small always-on VM (Oracle Cloud Always Free).
+# Put this file and a filled-in .env (from .env.example next to it) in one folder, then:
+#   docker compose pull && docker compose up -d      # start or update
+#   docker compose logs -f worker                    # follow the logs
+services:
+  worker:
+    image: ghcr.io/rickavila296/queuesprout-worker:latest
+    restart: unless-stopped
+    env_file: .env
+    init: true
+    # The worker lets in-flight publish steps finish for up to 70 s on SIGTERM.
+    stop_grace_period: 80s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

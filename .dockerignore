@@ -1,0 +1,11 @@
+# Keep build contexts small and secret-free.
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+.env
+.env.*
+!.env.example
+docs/private
+coverage
