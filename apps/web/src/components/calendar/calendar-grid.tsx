@@ -273,7 +273,8 @@ function Chip({
   draggable: boolean;
   onMove: () => void;
 }) {
-  const label = `${post.time} ${post.channelName}, ${statusLabel(post.status)}: ${post.body || 'No text'}`;
+  const channel = `${providerLabel(post.provider)} (${post.channelName})`;
+  const label = `${post.time} ${channel}, ${statusLabel(post.status)}: ${post.body || 'No text'}`;
   return (
     <div
       className={cn(
@@ -290,18 +291,25 @@ function Chip({
         href={`/w/${slug}/posts/${post.groupId}` as '/'}
         draggable={false}
         aria-label={label}
-        title={`${providerLabel(post.provider)}: ${post.body}`}
+        title={`${channel}: ${post.body}`}
         className="flex min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1"
       >
         <span
           className={cn('mt-1 size-2 shrink-0 rounded-full', statusDotClass(post.status))}
           aria-hidden="true"
         />
-        <span className="min-w-0 flex-1">
-          <span className="tabular-nums text-muted">{post.time}</span>{' '}
-          <span className="font-medium">{post.channelName}</span>
-          {!compact && <span className="line-clamp-2 text-muted">{post.body || 'No text'}</span>}
-        </span>
+        {compact ? (
+          <span className="min-w-0 flex-1 truncate">
+            <span className="tabular-nums text-muted">{post.time}</span>{' '}
+            <span className="font-medium">{channel}</span>
+          </span>
+        ) : (
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="tabular-nums text-muted">{post.time}</span>
+            <span className="truncate font-medium">{channel}</span>
+            <span className="line-clamp-2 text-muted">{post.body || 'No text'}</span>
+          </span>
+        )}
       </Link>
       {draggable && (
         <button
@@ -309,7 +317,7 @@ function Chip({
           onClick={onMove}
           // Hidden until hover only where there is hover; touch screens always show it.
           className="shrink-0 rounded-sm px-1 py-1 text-muted hover:text-text pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
-          aria-label={`Move ${post.channelName} post at ${post.time} to another time`}
+          aria-label={`Move ${channel} post at ${post.time} to another time`}
         >
           ⋯
         </button>
@@ -361,7 +369,7 @@ function MoveDialog({
           Move to…
         </h2>
         <p className="line-clamp-2 text-sm text-muted">
-          {post.channelName}: {post.body || 'No text'}
+          {providerLabel(post.provider)} ({post.channelName}): {post.body || 'No text'}
         </p>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="move-at">Date and time ({timezone})</Label>
