@@ -27,8 +27,8 @@ demos, so the hosted app adds no AI markup.
 
 > Status: **Publisher, Phase 2 (media and deploy).** Sign-in, workspaces, invites and roles work.
 > Posts and threads with images publish to Bluesky, Mastodon, Discord, Telegram and Slack, with
-> retries and a calendar to reschedule. Review-gated channels come next, then the Intelligence,
-> Studio and Insights MVPs, then video.
+> retries and a calendar to reschedule. Review-gated channels, video and the public API come next.
+> Intelligence, Studio and Insights follow once Publisher is complete.
 
 Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
 clean-room build with no shared code (ADR-003).
