@@ -27,11 +27,10 @@ demos, so the hosted app adds no AI markup.
 
 > Status: **Publisher, Phase 2 (media and deploy).** Sign-in, workspaces, invites and roles work.
 > Posts and threads with images publish to Bluesky, Mastodon, Discord, Telegram and Slack, with
-> retries and a calendar to reschedule. Review-gated channels, video and the public API come next.
-> Intelligence, Studio and Insights follow once Publisher is complete.
-
-Inspired by [Postiz](https://github.com/gitroomhq/postiz-app) in concept only: this is a
-clean-room build with no shared code (ADR-003).
+> retries, a media library with storage quotas, and a calendar to reschedule. The production
+> setup is in place and Publisher is going live at publisher.queuesprout.com. Review-gated
+> channels, video and the public API come next. Intelligence, Studio and Insights follow once
+> Publisher is complete.
 
 ## Channels
 
@@ -116,10 +115,22 @@ way, to exercise retries.
 | `pnpm db:generate`                           | Generate a migration after a schema change               |
 | `pnpm db:migrate`                            | Apply migrations (owner role)                            |
 
-## Self-hosting
+## Deploying
 
-A four-container Docker Compose stack (web, worker, Postgres, SeaweedFS) and a setup guide per
-platform arrive with the launch phase.
+The hosted setup runs on free tiers: the web app on Vercel, Postgres and file storage on
+Supabase, email through Resend, and the worker on any small always-on VM.
+
+- The worker ships as a multi-arch image (amd64 and arm64),
+  `ghcr.io/rickavila296/queuesprout-worker`, built and published from `main` by GitHub Actions.
+  It applies migrations on start.
+- [`deploy/worker`](deploy/worker) has the Compose file and env template for the VM.
+- [`deploy/supabase/setup.sql`](deploy/supabase/setup.sql) creates the database roles on a
+  managed Postgres where the owner is not a superuser.
+- `DATABASE_SSL_CA` makes every database connection require TLS and verify the server against
+  that CA.
+
+A self-hosted Docker Compose stack (web, worker, Postgres, SeaweedFS) with a setup guide per
+platform arrives with the launch phase.
 
 ## License
 
