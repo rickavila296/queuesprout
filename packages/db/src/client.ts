@@ -26,13 +26,24 @@ export interface PgConnection {
 
 /** Accepts a PEM certificate as is, or base64-encoded (easier to put in a one-line env var). */
 export function decodeCaCert(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('-----BEGIN')) return trimmed;
-  const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
+  const cleaned = stripPasteNoise(value);
+  if (cleaned.startsWith('-----BEGIN')) return cleaned;
+  const decoded = stripPasteNoise(Buffer.from(cleaned, 'base64').toString('utf8'));
   if (!decoded.startsWith('-----BEGIN CERTIFICATE-----')) {
-    throw new Error('DATABASE_SSL_CA must be a PEM certificate or a base64-encoded one.');
+    throw new Error(
+      'DATABASE_SSL_CA must be a PEM certificate or a base64-encoded one. Paste the whole ' +
+        'certificate, including its BEGIN and END lines, without quotes.',
+    );
   }
   return decoded;
+}
+
+/** Surrounding quotes, a byte-order mark and literal \n escapes that pasting into env settings adds. */
+function stripPasteNoise(value: string): string {
+  let text = value.replace(/^\uFEFF/, '').trim();
+  const quoted = /^(["'])([\s\S]*)\1$/.exec(text);
+  if (quoted?.[2] !== undefined) text = quoted[2].trim();
+  return text.replace(/\\n/g, '\n');
 }
 
 /**
