@@ -41,6 +41,7 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/next-env.d.ts',
       'packages/db/migrations/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,
