@@ -32,7 +32,7 @@ export function DemoChannelForm({ workspaceSlug }: { workspaceSlug: string }) {
       </ul>
       <FieldError>{state && !state.ok ? state.error : undefined}</FieldError>
       {state?.ok && (
-        <p role="status" className="text-sm text-sprout-600">
+        <p role="status" className="text-sm text-success">
           Added {state.data.name}.
         </p>
       )}

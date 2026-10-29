@@ -96,7 +96,7 @@ export function DeliveryList({
                 </span>
               )}
               {p.externalUrl && !thread && (
-                <a className="text-sm text-sprout-600 underline" href={p.externalUrl}>
+                <a className="text-sm text-link underline" href={p.externalUrl}>
                   View on {platform}
                 </a>
               )}
@@ -110,7 +110,7 @@ export function DeliveryList({
                     {hint(kind, platform)}{' '}
                     {kind === 'auth' && (
                       <Link
-                        className="text-sprout-600 underline"
+                        className="text-link underline"
                         href={`/w/${workspaceSlug}/channels` as Route}
                       >
                         Channels
@@ -148,7 +148,7 @@ export function DeliveryList({
                                 : 'Not sent yet'}
                           </span>
                           {item?.externalUrl && (
-                            <a className="text-sprout-600 underline" href={item.externalUrl}>
+                            <a className="text-link underline" href={item.externalUrl}>
                               View
                             </a>
                           )}

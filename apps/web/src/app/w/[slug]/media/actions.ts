@@ -30,7 +30,7 @@ const NO_STORAGE = 'Media storage is not set up yet. Set the S3_* variables in .
 
 const RESERVE_MESSAGES: Record<ReserveMediaError, string> = {
   forbidden: 'Only editors can upload media.',
-  quota_exceeded: 'This workspace is out of storage. Delete some media first.',
+  quota_exceeded: 'This client is out of storage. Delete some media first.',
   invalid_key: 'Something went wrong. Try again.',
 };
 

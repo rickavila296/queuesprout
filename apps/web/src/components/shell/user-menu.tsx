@@ -26,7 +26,7 @@ export function UserMenu({ user }: { user: { name: string; email: string } }) {
       >
         {initial}
       </summary>
-      <div className="absolute right-0 top-10 z-30 w-56 rounded-md border border-border bg-bg p-1 shadow-sm">
+      <div className="absolute right-0 top-10 z-30 w-56 rounded-md border border-border bg-surface-raised p-1 shadow-md">
         <div className="px-2 py-1.5">
           <p className="truncate font-medium">{user.name || user.email}</p>
           <p className="truncate text-sm text-muted">{user.email}</p>

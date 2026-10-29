@@ -67,7 +67,7 @@ export function DiscordConnectForm({ workspaceSlug }: { workspaceSlug: string })
           {pending ? 'Connecting…' : 'Connect Discord'}
         </Button>
         {state?.ok && (
-          <p role="status" className="text-sm text-sprout-600">
+          <p role="status" className="text-sm text-success">
             Connected {state.data.name}.
           </p>
         )}

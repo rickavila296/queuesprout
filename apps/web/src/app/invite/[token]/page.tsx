@@ -7,7 +7,7 @@ import { getSession } from '@/lib/session';
 import { hashToken } from '@/lib/tokens';
 import { AcceptForm } from './accept-form';
 
-export const metadata: Metadata = { title: 'Workspace invite', robots: { index: false } };
+export const metadata: Metadata = { title: 'Invitation', robots: { index: false } };
 
 export default async function InvitePage({ params }: PageProps<'/invite/[token]'>) {
   const { token } = await params;

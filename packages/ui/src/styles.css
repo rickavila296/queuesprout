@@ -4,33 +4,50 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 @theme inline {
-  --color-sprout-600: var(--sprout-600);
-  --color-sprout-500: var(--sprout-500);
-  --color-sprout-100: var(--sprout-100);
-  --color-sprout-fg: var(--sprout-fg);
+  --color-shell: var(--shell);
+  --color-shell-hover: var(--shell-hover);
+  --color-shell-border: var(--shell-border);
+  --color-shell-text: var(--shell-text);
+  --color-shell-strong: var(--shell-strong);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
+  --color-surface-raised: var(--surface-raised);
   --color-border: var(--border);
+  --color-border-control: var(--border-control);
   --color-text: var(--text);
   --color-muted: var(--text-muted);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-selected: var(--selected);
+  --color-link: var(--link);
+  --color-focus: var(--focus);
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
   --color-info: var(--info);
+  --color-attention: var(--attention);
+  --color-attention-text: var(--attention-text);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
 
   --font-sans: var(--font-geist-sans), Inter, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Display face: report titles, the Today date line and marketing only. */
+  --font-display: var(--font-archivo), var(--font-geist-sans), system-ui, sans-serif;
 
   --text-xs: 12px;
   --text-sm: 13px;
   --text-base: 14px;
   --text-md: 16px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 32px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
 
   --radius-sm: 6px;
   --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
 @layer base {
@@ -41,20 +58,43 @@
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
+    accent-color: var(--primary);
+    caret-color: var(--text);
   }
   h1,
   h2,
   h3 {
     line-height: 1.25;
+    text-wrap: balance;
   }
   *,
   ::before,
   ::after {
     border-color: var(--border);
   }
+  ::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  /* Archivo set semi-condensed reads like a running order's captions. */
+  .font-display {
+    font-stretch: 88%;
+    letter-spacing: -0.01em;
+  }
+  time,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
   :focus-visible {
-    outline: 2px solid var(--sprout-600);
+    outline: 2px solid var(--focus);
     outline-offset: 2px;
+  }
+  /* On the pine shell the ring is lime, so it stays visible against the dark band. */
+  .bg-shell :focus-visible {
+    outline-color: var(--accent);
   }
   @media (prefers-reduced-motion: reduce) {
     *,

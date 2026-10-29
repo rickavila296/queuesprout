@@ -19,11 +19,11 @@ import { ProviderMark } from './provider-mark';
 
 export const metadata: Metadata = { title: 'Channels' };
 
-function health(c: ChannelSummary): { label: string; tone: 'success' | 'warning' | 'danger' } {
+function health(c: ChannelSummary): { label: string; tone: 'success' | 'attention' | 'danger' } {
   if (c.accountStatus === 'needs_reauth') return { label: 'Needs reconnect', tone: 'danger' };
   if (c.accountStatus === 'revoked') return { label: 'Revoked', tone: 'danger' };
-  if (c.channelStatus === 'rate_limited') return { label: 'Rate limited', tone: 'warning' };
-  if (c.channelStatus === 'disabled') return { label: 'Disabled', tone: 'warning' };
+  if (c.channelStatus === 'rate_limited') return { label: 'Rate limited', tone: 'attention' };
+  if (c.channelStatus === 'disabled') return { label: 'Disabled', tone: 'attention' };
   if (c.channelStatus === 'target_missing') return { label: 'Not found', tone: 'danger' };
   return { label: 'Active', tone: 'success' };
 }
@@ -61,8 +61,8 @@ export default async function ChannelsPage({
           <div>
             <h2 className="font-medium">Add a demo channel</h2>
             <p className="text-sm text-muted">
-              This workspace is in sandbox mode: posts run through the whole pipeline but never
-              leave QueueSprout. Demo channels need no sign-in.
+              This client is in sandbox mode: posts run through the whole pipeline but never leave
+              QueueSprout. Demo channels need no sign-in.
             </p>
           </div>
           <DemoChannelForm workspaceSlug={slug} />
@@ -73,7 +73,7 @@ export default async function ChannelsPage({
           role="status"
           className={
             result === 'connected'
-              ? 'rounded-md border border-border bg-surface px-3 py-2 text-sm text-sprout-600'
+              ? 'rounded-md border border-border bg-surface px-3 py-2 text-sm text-success'
               : 'rounded-md border border-border bg-surface px-3 py-2 text-sm text-danger'
           }
         >

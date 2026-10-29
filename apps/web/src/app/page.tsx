@@ -30,7 +30,7 @@ export default function LandingPage() {
         </div>
       </header>
       <main className="flex flex-1 flex-col justify-center gap-6 py-16">
-        <h1 className="max-w-2xl text-2xl font-semibold">
+        <h1 className="max-w-2xl font-display text-2xl font-semibold">
           Write once. Schedule everywhere. Watch your audience sprout.
         </h1>
         <p className="max-w-xl text-md text-muted">

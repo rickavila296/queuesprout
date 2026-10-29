@@ -159,7 +159,7 @@ export async function connectBlueskyAction(
       getWorkspace(tx, ctx.workspaceId),
     );
     if (!workspace || workspace.isSandbox) {
-      return fail('Sandbox workspaces use demo channels only.');
+      return fail('Sample clients use demo channels only.');
     }
     const connect = secretConnector('bluesky');
     if (!connect) return fail('Bluesky is not available.');
@@ -226,7 +226,7 @@ export async function connectDiscordAction(
       getWorkspace(tx, ctx.workspaceId),
     );
     if (!workspace || workspace.isSandbox) {
-      return fail('Sandbox workspaces use demo channels only.');
+      return fail('Sample clients use demo channels only.');
     }
     const connect = secretConnector('discord');
     if (!connect) return fail('Discord is not available.');
@@ -295,7 +295,7 @@ export async function connectSlackAction(
       getWorkspace(tx, ctx.workspaceId),
     );
     if (!workspace || workspace.isSandbox) {
-      return fail('Sandbox workspaces use demo channels only.');
+      return fail('Sample clients use demo channels only.');
     }
     const connect = secretConnector('slack');
     if (!connect) return fail('Slack is not available.');
@@ -365,7 +365,7 @@ export async function connectTelegramAction(
       getWorkspace(tx, ctx.workspaceId),
     );
     if (!workspace || workspace.isSandbox) {
-      return fail('Sandbox workspaces use demo channels only.');
+      return fail('Sample clients use demo channels only.');
     }
     const connect = secretConnector('telegram');
     if (!connect) return fail('Telegram is not available.');
@@ -441,7 +441,7 @@ export async function startMastodonConnectAction(
       getWorkspace(tx, ctx.workspaceId),
     );
     if (!workspace || workspace.isSandbox) {
-      return fail('Sandbox workspaces use demo channels only.');
+      return fail('Sample clients use demo channels only.');
     }
 
     const appKey = { provider: 'mastodon', instanceUrl: instance };

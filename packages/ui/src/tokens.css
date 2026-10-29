@@ -1,40 +1,81 @@
 /*
- * QueueSprout design tokens (Design Brief, section 4). Neutral surfaces carry the UI;
- * green is reserved for primary actions and success.
- * Light primary is #23804A, not #2F9E5B: white text on #2F9E5B is 3.4:1 and fails WCAG AA.
- * --warning fails AA as text on white; use it for dots, borders and icons only.
+ * QueueSprout design tokens (DESIGN.md). Running-order direction: a deep-pine shell, warm paper
+ * working ground, soft stone second surface, lime only on pine or as a fill under pine text.
+ * Lime on paper is 1.15:1, so it never carries text or edges on the light ground.
+ * Clay (#C97958) marks attention; its text shade is --attention-text (5.4:1 on paper).
+ * Every text pair passes WCAG AA (4.5:1) and every control edge 3:1 in both themes.
  */
 :root,
 [data-theme='light'] {
   color-scheme: light;
-  --sprout-600: #23804a;
-  --sprout-500: #2f9e5b;
-  --sprout-100: #e6f6ec;
-  --sprout-fg: #ffffff;
-  --bg: #ffffff;
-  --surface: #f7f8f7;
-  --surface-hover: #eef0ee;
-  --border: #e3e6e4;
-  --text: #121614;
-  --text-muted: #5d6661;
-  --warning: #c98a12;
-  --danger: #d14343;
-  --info: #2f6fde;
+
+  /* Shell: sidebar and client header band. */
+  --shell: #182b25;
+  --shell-hover: #223a32;
+  --shell-border: #2a443b;
+  --shell-text: #b9c7bf;
+  --shell-strong: #f6f5ef;
+  --accent: #d1f279;
+  --on-accent: #182b25;
+
+  /* Working ground. */
+  --bg: #f6f5ef;
+  --surface: #e7e8e0;
+  --surface-hover: #dee0d6;
+  --surface-raised: #ffffff;
+  --border: #d9dbd1;
+  --border-control: #737f78;
+  --text: #182b25;
+  --text-muted: #55635c;
+
+  /* Actions and selection. */
+  --primary: #182b25;
+  --primary-fg: #f6f5ef;
+  --selected: #e9f2c9;
+  --link: #2f5d46;
+  --focus: #182b25;
+
+  /* Status. Marks (dots, edges, icons) use the base; words on the light ground use -text. */
+  --success: #2f6b3f;
+  --success-tint: #e1eee2;
+  --info: #2d5b8a;
+  --attention: #c97958;
+  --attention-text: #9a4f33;
+  --danger: #b42318;
+  --danger-fg: #ffffff;
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --sprout-600: #3dbe70;
-  --sprout-500: #3dbe70;
-  --sprout-100: #13301f;
-  --sprout-fg: #0e1110;
-  --bg: #0e1110;
-  --surface: #161a18;
-  --surface-hover: #1d2220;
-  --border: #262b28;
-  --text: #ecefed;
-  --text-muted: #98a29c;
-  --warning: #e0a73a;
-  --danger: #f06464;
-  --info: #5b92f0;
+
+  --shell: #0b1411;
+  --shell-hover: #1a2a23;
+  --shell-border: #22332b;
+  --shell-text: #b9c7bf;
+  --shell-strong: #f6f5ef;
+  --accent: #d1f279;
+  --on-accent: #182b25;
+
+  --bg: #101b17;
+  --surface: #18261f;
+  --surface-hover: #24342c;
+  --surface-raised: #1c2b24;
+  --border: #2c3b34;
+  --border-control: #6b7a72;
+  --text: #eceee6;
+  --text-muted: #a3ada6;
+
+  --primary: #d1f279;
+  --primary-fg: #182b25;
+  --selected: #26361f;
+  --link: #c5e37a;
+  --focus: #d1f279;
+
+  --success: #8fcb9b;
+  --success-tint: #1e3325;
+  --info: #8db4de;
+  --attention: #e0997a;
+  --attention-text: #e0997a;
+  --danger: #f07a6e;
+  --danger-fg: #101b17;
 }

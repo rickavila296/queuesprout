@@ -6,10 +6,9 @@ const badgeVariants = cva('inline-flex items-center rounded-sm px-1.5 py-0.5 tex
   variants: {
     tone: {
       neutral: 'bg-surface-hover text-muted',
-      success: 'bg-sprout-100 text-sprout-600',
+      success: 'bg-success-tint text-success',
       danger: 'border border-danger text-danger',
-      // --warning and --info fail AA as text, so they tint the border and the text stays default.
-      warning: 'border border-warning text-text',
+      attention: 'border border-attention text-attention-text',
       info: 'border border-info text-text',
     },
   },

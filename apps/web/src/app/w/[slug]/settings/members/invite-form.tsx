@@ -50,7 +50,7 @@ export function InviteForm({ workspaceSlug }: { workspaceSlug: string }) {
       </p>
       <FieldError>{errors?.email ?? (state && !state.ok ? state.error : undefined)}</FieldError>
       {state?.ok && (
-        <p role="status" className="text-sm text-sprout-600">
+        <p role="status" className="text-sm text-success">
           Invite sent to {state.data.email}.
         </p>
       )}
