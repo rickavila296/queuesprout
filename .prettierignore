@@ -6,3 +6,7 @@ coverage
 packages/db/migrations/meta
 docs/private/
 CLAUDE.md
+
+# Vendored third-party skill (impeccable); keep upstream formatting.
+.claude/skills/
+.claude/agents/
