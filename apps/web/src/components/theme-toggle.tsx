@@ -42,7 +42,7 @@ function subscribe(onChange: () => void) {
   };
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const choice = useSyncExternalStore(subscribe, read, () => 'system' as const);
 
   // Re-apply after React's dev remount clears the attribute the head script set.
@@ -66,6 +66,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
+      className={className}
       onClick={cycle}
       aria-label={`Theme: ${choice}. Change theme`}
     >

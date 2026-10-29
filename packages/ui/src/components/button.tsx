@@ -8,6 +8,8 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary: 'bg-primary text-primary-fg hover:opacity-90',
+        // Lime on pine only (DESIGN.md): for actions set on the shell band.
+        accent: 'bg-accent text-on-accent hover:opacity-90',
         secondary:
           'border border-border-control bg-surface-raised text-text hover:bg-surface-hover',
         ghost: 'text-text hover:bg-surface-hover',

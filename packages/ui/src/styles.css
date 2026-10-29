@@ -44,6 +44,9 @@
   --text-lg: 18px;
   --text-xl: 22px;
   --text-2xl: 28px;
+  /* Marketing headlines only. */
+  --text-3xl: 40px;
+  --text-4xl: 56px;
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -66,6 +69,11 @@
   h3 {
     line-height: 1.25;
     text-wrap: balance;
+  }
+  p,
+  li,
+  dd {
+    text-wrap: pretty;
   }
   *,
   ::before,
