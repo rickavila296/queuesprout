@@ -22,6 +22,15 @@ describe('decodeCaCert', () => {
     expect(decodeCaCert(Buffer.from(PEM).toString('base64'))).toBe(PEM);
   });
 
+  it('ignores quotes, a byte-order mark and literal \\n that pasting adds', () => {
+    const base64 = Buffer.from(PEM).toString('base64');
+    expect(decodeCaCert(`"${base64}"`)).toBe(PEM);
+    expect(decodeCaCert(`'${PEM}'`)).toBe(PEM);
+    expect(decodeCaCert(`\uFEFF${PEM}`)).toBe(PEM);
+    expect(decodeCaCert(Buffer.from(`\uFEFF${PEM}`).toString('base64'))).toBe(PEM);
+    expect(decodeCaCert(PEM.replaceAll('\n', '\\n'))).toBe(PEM);
+  });
+
   it('refuses anything else', () => {
     expect(() => decodeCaCert('not a cert')).toThrow(/PEM certificate/);
   });
