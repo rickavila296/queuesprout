@@ -175,17 +175,17 @@ Dark mode is set with `<html data-theme="dark">` before paint. The ground become
 
 ### Hierarchy
 
-| Role    | Size                                             | Weight | Use                                             |
-| ------- | ------------------------------------------------ | ------ | ----------------------------------------------- |
-| Display | Archivo, 28 px on marketing, 18–22 px in the app | 600    | Calendar range, landing headline, report titles |
-| Title   | 22 px Geist                                      | 600    | Page titles (Channels, Members)                 |
-| Heading | 16 px                                            | 600    | Section headings                                |
-| Body    | 14 px                                            | 400    | Everything else                                 |
-| Small   | 12–13 px                                         | 400    | Meta lines, hints, chips                        |
+| Role    | Size                                                                            | Weight | Use                                             |
+| ------- | ------------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| Display | Archivo, 40–56 px landing headline, 28 px landing sections, 18–22 px in the app | 600    | Calendar range, landing headings, report titles |
+| Title   | 22 px Geist                                                                     | 600    | Page titles (Channels, Members)                 |
+| Heading | 16 px                                                                           | 600    | Section headings                                |
+| Body    | 14 px                                                                           | 400    | Everything else                                 |
+| Small   | 12–13 px                                                                        | 400    | Meta lines, hints, chips                        |
 
 ### Named Rules
 
-- **One display line per screen.** Archivo marks the headline of a screen, never a section inside it.
+- **One display line per screen in the app.** Archivo marks the headline of an app screen, never a section inside it. The landing page is the exception: its section headings are Archivo too.
 - **No eyebrows.** No small all-caps kicker above a heading.
 - **Times are mono.** Anything a person scans down a column (times, counts) uses tabular figures.
 
@@ -226,6 +226,7 @@ Radii are small and practical: 6 px for buttons and chips, 8 px for inputs, pane
   `PostStatusDot` shows icon plus label. `PostStatusIcon` is the icon alone, for calendar chips, where the chip's accessible name carries the label.
 
 - **Calendar chip.** A sheet on the day cell: status icon, mono time, channel, first line. At least 24 px tall. The ⋯ move button is revealed on hover where there is a pointer, and is always shown on touch.
+- **Landing page.** The pine band carries the header and hero, with a lime primary action (`accent` button variant, lime on pine only). An example running order, labelled as made-up data and drawn with the real status vocabulary, sits on a sheet that straddles the band's lower edge. Below it, each step of the client-delivery loop is marked Live or Planned, and a step is marked Live only once it works. Channels are grouped by their real state.
 - **Today.** Today's date in the calendar is a pine tag with paper text (lime with pine text in dark), the running order's "now" line.
 - **Focus.** A 2 px ring offset 2 px, pine on paper and lime on the shell and in dark mode.
 
