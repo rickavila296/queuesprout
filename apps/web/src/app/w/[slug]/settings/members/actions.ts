@@ -63,7 +63,7 @@ export async function inviteMemberAction(
       to: email,
       subject: `${user.name || user.email} invited you to ${workspace?.name ?? 'QueueSprout'}`,
       ...linkEmail({
-        heading: `Join ${workspace?.name ?? 'a workspace'} on QueueSprout`,
+        heading: `Join ${workspace?.name ?? 'a client'} on QueueSprout`,
         body: `${user.name || user.email} invited you as ${role}. The invite expires in ${INVITE_TTL_DAYS} days.`,
         cta: 'Accept invite',
         url,

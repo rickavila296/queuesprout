@@ -61,7 +61,7 @@ export function CreateWorkspaceForm() {
       <p className="text-sm text-muted">Timezone: {timezone}. You can change it later.</p>
       {state && !state.ok && !errors && <FieldError>{state.error}</FieldError>}
       <Button type="submit" size="lg" disabled={pending}>
-        {pending ? 'Creating…' : 'Create workspace'}
+        {pending ? 'Adding…' : 'Add client'}
       </Button>
     </form>
   );

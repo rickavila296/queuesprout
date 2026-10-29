@@ -12,10 +12,17 @@ export function SproutMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ className }: { className?: string }) {
+/** On the pine shell pass `onShell`: the mark turns lime and the name paper. */
+export function Logo({ className, onShell = false }: { className?: string; onShell?: boolean }) {
   return (
-    <span className={cn('inline-flex items-center gap-1.5 font-semibold text-text', className)}>
-      <SproutMark className="text-sprout-600" />
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 font-semibold',
+        onShell ? 'text-shell-strong' : 'text-text',
+        className,
+      )}
+    >
+      <SproutMark className={onShell ? 'text-accent' : 'text-text'} />
       QueueSprout
     </span>
   );

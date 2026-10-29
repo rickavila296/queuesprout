@@ -43,7 +43,7 @@ export function MemberControls({
         <ConfirmButton
           variant="ghost"
           size="sm"
-          confirmText={`Remove ${name} from this workspace? They lose access right away.`}
+          confirmText={`Remove ${name} from this client? They lose access right away.`}
         >
           Remove
         </ConfirmButton>

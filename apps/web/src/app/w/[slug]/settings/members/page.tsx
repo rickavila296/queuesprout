@@ -26,7 +26,7 @@ export default async function MembersPage({ params }: PageProps<'/w/[slug]/setti
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold">Members</h1>
-        <p className="text-muted">Who can work in this workspace, and what they can do.</p>
+        <p className="text-muted">Who can work on this client, and what they can do.</p>
       </div>
 
       {manage && (

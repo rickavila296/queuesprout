@@ -143,7 +143,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
       {notice && (
         <div
           role="status"
-          className="flex items-center gap-3 rounded-md border border-sprout-500/40 bg-sprout-100 px-3 py-2 text-sm text-sprout-600"
+          className="flex items-center gap-3 rounded-md border border-success/40 bg-success-tint px-3 py-2 text-sm text-success"
         >
           <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
           <p className="flex-1">
@@ -166,7 +166,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="mr-2 text-lg font-semibold sm:text-xl">
+          <h1 className="mr-2 font-display text-lg font-semibold sm:text-xl">
             {title(view, anchor, first, end)}
           </h1>
           <Link
@@ -196,9 +196,7 @@ export default async function CalendarPage({ params, searchParams }: PageProps<'
                 aria-current={v === view ? 'page' : undefined}
                 className={cn(
                   'rounded-sm px-2.5 py-1 text-sm capitalize',
-                  v === view
-                    ? 'bg-sprout-100 font-medium text-sprout-600'
-                    : 'text-muted hover:text-text',
+                  v === view ? 'bg-selected font-medium text-text' : 'text-muted hover:text-text',
                 )}
               >
                 {v}

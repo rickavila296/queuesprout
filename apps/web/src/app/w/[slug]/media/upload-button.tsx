@@ -127,7 +127,7 @@ export function UploadButton({
             className="h-1.5 overflow-hidden rounded-full bg-surface-hover"
           >
             <div
-              className="h-full rounded-full bg-sprout-600 transition-[width] duration-150"
+              className="h-full rounded-full bg-primary transition-[width] duration-150"
               style={{ width: `${progress.percent}%` }}
             />
           </div>

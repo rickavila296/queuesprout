@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useTransition, type DragEvent } from 'reac
 import type { PostStatus, ProviderId } from '@queuesprout/shared';
 import { Button, cn, FieldError, Input, Label } from '@queuesprout/ui';
 import { reschedulePostAction } from '@/app/w/[slug]/actions';
-import { statusDotClass, statusLabel } from '@/components/post-status';
+import { PostStatusIcon, statusLabel } from '@/components/post-status';
 import { providerLabel } from '@/lib/providers';
 
 export interface GridPost {
@@ -175,14 +175,13 @@ export function CalendarGrid({ slug, view, days, month, today, timezone, posts, 
                     'flex flex-col gap-1 bg-bg p-1.5',
                     view === 'week' ? 'min-h-16 sm:min-h-64' : 'min-h-28',
                     outside && 'bg-surface',
-                    dragOver === day && 'outline-2 -outline-offset-2 outline-sprout-600',
+                    dragOver === day && 'outline-2 -outline-offset-2 outline-focus',
                   )}
                 >
                   <span
                     className={cn(
                       'self-start rounded-sm px-1 text-xs tabular-nums',
-                      day === today ? 'bg-sprout-600 font-medium text-sprout-fg' : 'text-muted',
-                      outside && 'opacity-60',
+                      day === today ? 'bg-primary font-medium text-primary-fg' : 'text-muted',
                     )}
                   >
                     {view === 'week' ? formatDay(day) : Number(day.slice(8))}
@@ -278,7 +277,7 @@ function Chip({
   return (
     <div
       className={cn(
-        'group flex items-start gap-1 rounded-sm border border-border bg-surface text-xs hover:bg-surface-hover',
+        'group flex items-start gap-1 rounded-sm border border-border bg-surface-raised text-xs hover:bg-surface-hover',
         draggable && 'cursor-grab active:cursor-grabbing',
       )}
       draggable={draggable}
@@ -292,20 +291,17 @@ function Chip({
         draggable={false}
         aria-label={label}
         title={`${channel}: ${post.body}`}
-        className="flex min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1"
+        className="flex min-h-6 min-w-0 flex-1 items-start gap-1.5 px-1.5 py-1"
       >
-        <span
-          className={cn('mt-1 size-2 shrink-0 rounded-full', statusDotClass(post.status))}
-          aria-hidden="true"
-        />
+        <PostStatusIcon status={post.status} className="mt-px" />
         {compact ? (
           <span className="min-w-0 flex-1 truncate">
-            <span className="tabular-nums text-muted">{post.time}</span>{' '}
+            <span className="font-mono tabular-nums text-muted">{post.time}</span>{' '}
             <span className="font-medium">{channel}</span>
           </span>
         ) : (
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="tabular-nums text-muted">{post.time}</span>
+            <span className="font-mono tabular-nums text-muted">{post.time}</span>
             <span className="truncate font-medium">{channel}</span>
             <span className="line-clamp-2 text-muted">{post.body || 'No text'}</span>
           </span>
@@ -316,7 +312,7 @@ function Chip({
           type="button"
           onClick={onMove}
           // Hidden until hover only where there is hover; touch screens always show it.
-          className="shrink-0 rounded-sm px-1 py-1 text-muted hover:text-text pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+          className="min-h-6 min-w-6 shrink-0 rounded-sm px-1 py-1 text-muted hover:text-text pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
           aria-label={`Move ${channel} post at ${post.time} to another time`}
         >
           ⋯

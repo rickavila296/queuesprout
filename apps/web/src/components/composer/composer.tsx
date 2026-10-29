@@ -166,10 +166,7 @@ export function Composer({
         {channels.length === 0 ? (
           <p className="text-muted">
             No channels yet. Add one on the{' '}
-            <Link
-              className="text-sprout-600 underline"
-              href={`/w/${workspaceSlug}/channels` as '/'}
-            >
+            <Link className="text-link underline" href={`/w/${workspaceSlug}/channels` as '/'}>
               Channels
             </Link>{' '}
             page.
@@ -185,9 +182,9 @@ export function Composer({
                   <li key={c.id}>
                     <label
                       className={cn(
-                        'flex h-8 cursor-pointer items-center gap-2 rounded-sm border px-2.5 text-sm has-focus-visible:outline-2 has-focus-visible:outline-sprout-600',
+                        'flex h-8 cursor-pointer items-center gap-2 rounded-sm border px-2.5 text-sm has-focus-visible:outline-2 has-focus-visible:outline-focus',
                         on
-                          ? 'border-sprout-600 bg-sprout-100 text-sprout-600'
+                          ? 'border-primary bg-selected text-text'
                           : 'border-border bg-bg hover:bg-surface-hover',
                         disabled && 'cursor-not-allowed opacity-50',
                       )}
@@ -222,7 +219,7 @@ export function Composer({
                 {f.externalUrl && (
                   <>
                     {' · '}
-                    <a className="text-sprout-600 underline" href={f.externalUrl}>
+                    <a className="text-link underline" href={f.externalUrl}>
                       View post
                     </a>
                   </>
@@ -257,7 +254,7 @@ export function Composer({
                 className={cn(
                   '-mb-px flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-sm',
                   activeTab === t.id
-                    ? 'border-sprout-600 font-medium text-text'
+                    ? 'border-primary font-medium text-text'
                     : 'border-transparent text-muted hover:text-text',
                 )}
               >
@@ -364,7 +361,7 @@ export function Composer({
                   <span
                     className={cn(
                       'mt-1.5 size-2 shrink-0 rounded-full',
-                      problems.length || serverError ? 'bg-danger' : 'bg-sprout-500',
+                      problems.length || serverError ? 'bg-danger' : 'bg-success',
                     )}
                     aria-hidden="true"
                   />
@@ -400,7 +397,7 @@ export function Composer({
                 value={m}
                 checked={mode === m}
                 onChange={() => setMode(m)}
-                className="accent-sprout-600"
+                className="accent-primary"
               />
               {m === 'schedule' ? 'At a time' : m === 'now' ? 'Now' : 'Draft'}
             </label>

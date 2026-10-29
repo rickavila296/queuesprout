@@ -4,7 +4,7 @@ import { CalendarDays, Image as ImageIcon, Menu, Radio, Settings, Users, X } fro
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { Badge, Button, cn, Logo } from '@queuesprout/ui';
+import { Button, cn, Logo } from '@queuesprout/ui';
 import { ThemeToggle } from '../theme-toggle';
 import { UserMenu } from './user-menu';
 import { WorkspaceSwitcher, type SwitcherWorkspace } from './workspace-switcher';
@@ -14,6 +14,8 @@ interface NavItem {
   href: string | null;
   icon: typeof CalendarDays;
   soon?: string;
+  /** Other paths that belong to this item, such as a post opened from the calendar. */
+  also?: string[];
 }
 
 interface Props {
@@ -29,21 +31,30 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
   const base = `/w/${workspace.slug}`;
 
   const nav: NavItem[] = [
-    { label: 'Calendar', href: base, icon: CalendarDays },
+    {
+      label: 'Calendar',
+      href: base,
+      icon: CalendarDays,
+      also: [`${base}/compose`, `${base}/posts/`],
+    },
     { label: 'Channels', href: `${base}/channels`, icon: Radio },
     { label: 'Media', href: `${base}/media`, icon: ImageIcon },
     { label: 'Members', href: `${base}/settings/members`, icon: Users },
     { label: 'Settings', href: null, icon: Settings, soon: 'Soon' },
   ];
 
+  const isActive = (item: NavItem) =>
+    item.href !== null &&
+    (pathname === item.href || (item.also ?? []).some((p) => pathname.startsWith(p)));
+
   const sidebar = (
-    <nav aria-label="Workspace" className="flex h-full flex-col gap-4 p-3">
+    <nav aria-label="Client" className="flex h-full flex-col gap-5 p-3">
       <div className="flex h-8 items-center justify-between px-1">
-        <Logo />
+        <Logo onShell />
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="text-shell-strong hover:bg-shell-hover md:hidden"
           onClick={() => setMobileOpen(false)}
           aria-label="Close menu"
         >
@@ -54,20 +65,25 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
       <ul className="flex flex-col gap-0.5">
         {nav.map((item) => {
           const Icon = item.icon;
-          const active = item.href !== null && pathname === item.href;
+          const active = isActive(item);
           const content = (
             <>
               <Icon className="size-4" aria-hidden="true" />
               <span className="flex-1">{item.label}</span>
-              {item.soon && <Badge>{item.soon}</Badge>}
+              {item.soon && (
+                <span className="rounded-sm border border-shell-border px-1.5 text-xs text-shell-text">
+                  {item.soon}
+                </span>
+              )}
             </>
           );
           const classes = cn(
-            'flex h-8 items-center gap-2 rounded-sm px-2 text-base',
+            'flex h-8 items-center gap-2 rounded-sm px-2 text-base transition-colors',
             active
-              ? 'bg-sprout-100 font-medium text-sprout-600'
-              : 'text-text hover:bg-surface-hover',
-            item.href === null && 'cursor-default text-muted hover:bg-transparent',
+              ? 'bg-shell-hover font-semibold text-accent'
+              : 'text-shell-text hover:bg-shell-hover hover:text-shell-strong',
+            item.href === null &&
+              'cursor-default opacity-70 hover:bg-transparent hover:text-shell-text',
           );
           return (
             <li key={item.label}>
@@ -94,8 +110,8 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
 
   return (
     <div className="flex min-h-dvh">
-      <aside className="hidden w-60 shrink-0 border-r border-border bg-surface md:block">
-        {sidebar}
+      <aside className="hidden w-60 shrink-0 border-r border-shell-border bg-shell md:block">
+        <div className="sticky top-0 h-dvh">{sidebar}</div>
       </aside>
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
@@ -105,9 +121,7 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 w-64 border-r border-border bg-surface">
-            {sidebar}
-          </aside>
+          <aside className="absolute inset-y-0 left-0 w-64 bg-shell">{sidebar}</aside>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -127,7 +141,7 @@ export function AppShell({ workspace, workspaces, user, children }: Props) {
             <UserMenu user={user} />
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

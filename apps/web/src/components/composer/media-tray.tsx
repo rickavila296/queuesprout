@@ -126,7 +126,7 @@ export function MediaTray({
                   <button
                     type="button"
                     onClick={() => add(m.id)}
-                    className="block w-full rounded-sm outline-offset-2 focus-visible:outline-2 focus-visible:outline-sprout-600"
+                    className="block w-full rounded-sm outline-offset-2 focus-visible:outline-2 focus-visible:outline-focus"
                     aria-label={`Attach ${m.filename}`}
                     title={m.filename}
                   >

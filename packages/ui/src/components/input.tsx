@@ -7,7 +7,7 @@ import type {
 import { cn } from '../cn';
 
 const field =
-  'h-8 w-full rounded-md border border-border bg-bg px-2.5 text-base text-text placeholder:text-muted disabled:opacity-50 aria-invalid:border-danger';
+  'h-8 w-full rounded-md border border-border-control bg-surface-raised px-2.5 text-base text-text placeholder:text-muted disabled:opacity-50 aria-invalid:border-danger';
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(field, className)} {...props} />;

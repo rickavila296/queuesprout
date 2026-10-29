@@ -37,7 +37,7 @@ export function RetryForm({
           {pending ? 'Retrying…' : 'Retry now'}
         </Button>
         {state?.ok && (
-          <p role="status" className="text-sm text-sprout-600">
+          <p role="status" className="text-sm text-success">
             Queued. It goes out within a minute.
           </p>
         )}
